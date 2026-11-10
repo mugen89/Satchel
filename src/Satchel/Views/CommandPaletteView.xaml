@@ -1,0 +1,64 @@
+<UserControl x:Class="Satchel.Views.CommandPaletteView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:vm="clr-namespace:Satchel.ViewModels">
+    <Grid>
+        <Rectangle x:Name="Backdrop" Fill="{DynamicResource OverlayBrush}" Opacity="0" MouseLeftButtonDown="OnBackdrop" />
+        <Grid x:Name="Card" Width="660" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,84,0,40" Opacity="0">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="Shift" Y="-14" />
+            </Grid.RenderTransform>
+            <Border Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource RadiusLarge}" Effect="{DynamicResource DialogShadow}" />
+            <Border Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusLarge}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="20,16,16,14">
+                        <TextBlock Text="{x:Static core:Glyphs.Search}" FontFamily="{StaticResource IconFont}" FontSize="17" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
+                        <Border DockPanel.Dock="Right" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="5" Padding="7,2" VerticalAlignment="Center">
+                            <TextBlock Text="Esc" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                        </Border>
+                        <TextBox x:Name="QueryBox" Style="{StaticResource InlineTextBox}" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" FontSize="17" Margin="14,0,12,0"
+                                 VerticalAlignment="Center" b:Ui.Placeholder="Search everything or type a command…" PreviewKeyDown="OnQueryKeyDown" />
+                    </DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource Divider}" />
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,1,0,0" Padding="18,9">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" Text="↑ ↓ to move · Enter to open" />
+                            <TextBlock Text="{Binding Hint}" Style="{StaticResource Caption}" />
+                        </DockPanel>
+                    </Border>
+                    <Grid>
+                        <ListBox x:Name="List" ItemsSource="{Binding Results}" SelectedItem="{Binding Selected}" MaxHeight="430" Padding="8,8,8,8"
+                                 ItemContainerStyle="{StaticResource PlainListItem}" PreviewMouseLeftButtonUp="OnListClick" Focusable="False">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:PaletteItem}">
+                                    <DockPanel>
+                                        <Border x:Name="chip" Width="34" Height="34" CornerRadius="9" Background="{DynamicResource AccentSubtleBrush}">
+                                            <TextBlock x:Name="glyph" Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="14" Foreground="{DynamicResource AccentTextBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Border DockPanel.Dock="Right" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="8" Padding="8,1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                        </Border>
+                                        <StackPanel Margin="12,0,10,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding ColorKey, Converter={StaticResource HasValue}}" Value="True">
+                                            <Setter TargetName="chip" Property="Background" Value="{Binding ColorKey, Converter={StaticResource PaletteBrush}, ConverterParameter=subtle}" />
+                                            <Setter TargetName="glyph" Property="Foreground" Value="{Binding ColorKey, Converter={StaticResource PaletteBrush}}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="No matches" Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,28" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

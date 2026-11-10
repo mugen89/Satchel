@@ -1,0 +1,59 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:b="clr-namespace:Satchel.Behaviors"
+                    xmlns:dvm="clr-namespace:Satchel.ViewModels.Dialogs">
+
+    <!-- Shared bits for dialog layouts -->
+    <Style x:Key="DialogTitle" TargetType="TextBlock" BasedOn="{StaticResource Title}">
+        <Setter Property="FontSize" Value="19" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="DialogButtons" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Margin" Value="0,24,0,0" />
+    </Style>
+
+    <DataTemplate DataType="{x:Type dvm:ConfirmDialogViewModel}">
+        <StackPanel>
+            <DockPanel>
+                <Border x:Name="iconBg" Width="42" Height="42" CornerRadius="21" VerticalAlignment="Top" Background="{DynamicResource AccentSubtleBrush}">
+                    <TextBlock x:Name="icon" Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="17" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="{DynamicResource AccentTextBrush}" />
+                </Border>
+                <StackPanel Margin="16,2,0,0">
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource DialogTitle}" />
+                    <TextBlock Text="{Binding Message}" Style="{StaticResource Body}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0" />
+                </StackPanel>
+            </DockPanel>
+            <StackPanel Style="{StaticResource DialogButtons}">
+                <Button Content="{Binding CancelText}" Command="{Binding CancelCommand}" MinWidth="92" />
+                <Button x:Name="confirm" Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}" Style="{StaticResource AccentButton}"
+                        MinWidth="92" Margin="10,0,0,0" b:Ui.FocusOnLoad="True" />
+            </StackPanel>
+        </StackPanel>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsDanger}" Value="True">
+                <Setter TargetName="confirm" Property="Style" Value="{StaticResource DangerButton}" />
+                <Setter TargetName="iconBg" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
+                <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type dvm:PromptDialogViewModel}">
+        <StackPanel>
+            <TextBlock Text="{Binding Title}" Style="{StaticResource DialogTitle}" />
+            <TextBlock Text="{Binding Message}" Style="{StaticResource Body}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
+                       Visibility="{Binding HasMessage, Converter={StaticResource BoolToVis}}" />
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Margin="0,16,0,0" b:Ui.Placeholder="{Binding Placeholder}"
+                     b:Ui.FocusOnLoad="True" b:Ui.SelectAllOnFocus="True" b:Ui.EnterCommand="{Binding ConfirmCommand}" />
+            <StackPanel Style="{StaticResource DialogButtons}">
+                <Button Content="Cancel" Command="{Binding CancelCommand}" MinWidth="92" />
+                <Button Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}" Style="{StaticResource AccentButton}" MinWidth="92" Margin="10,0,0,0" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+</ResourceDictionary>

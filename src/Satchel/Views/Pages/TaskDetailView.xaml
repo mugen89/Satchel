@@ -1,0 +1,133 @@
+<UserControl x:Class="Satchel.Views.Pages.TaskDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:vm="clr-namespace:Satchel.ViewModels">
+    <DockPanel Margin="24,14,20,16">
+        <!-- Header -->
+        <Grid DockPanel.Dock="Top" Margin="-8,0,-6,10">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Close}" FontSize="12" Command="{Binding Owner.CloseDetailCommand}" ToolTip="Close" />
+                <ComboBox Style="{StaticResource SmallCombo}" ItemsSource="{Binding ListChoices}" SelectedItem="{Binding SelectedList}" MinWidth="140" Margin="6,0,0,0">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{Binding Color, Converter={StaticResource PaletteBrush}}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding Name}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Hide}" Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Task}"
+                        ToolTip="{Binding Task.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}" />
+                <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Delete}" Foreground="{DynamicResource DangerBrush}"
+                        Command="{Binding Owner.DeleteCommand}" CommandParameter="{Binding Task}" ToolTip="Delete task" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding MetaText}" Style="{StaticResource Caption}" Foreground="{DynamicResource TextFaintBrush}" Margin="0,12,0,0" />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-14,0" Padding="0,0,14,0">
+            <StackPanel>
+                <DockPanel>
+                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource RoundCheck}" IsChecked="{Binding Task.IsDone}" VerticalAlignment="Top" Margin="0,7,12,0"
+                              BorderBrush="{Binding Task.Priority, Converter={StaticResource PriorityBrush}}" />
+                    <TextBox x:Name="TitleBox" Style="{StaticResource InlineTextBox}" Text="{Binding Task.Title, UpdateSourceTrigger=PropertyChanged}" FontSize="21"
+                             FontWeight="SemiBold" TextWrapping="Wrap" b:Ui.Placeholder="Task title" FontFamily="{StaticResource DisplayFont}" />
+                </DockPanel>
+
+                <TextBlock Text="Status" Style="{StaticResource FieldLabel}" Margin="0,18,0,6" />
+                <Border Style="{StaticResource SegmentHost}">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" Content="To do" IsChecked="{Binding Task.State, Converter={StaticResource Equals}, ConverterParameter=Todo}" />
+                        <RadioButton Style="{StaticResource Segment}" Content="In progress" IsChecked="{Binding Task.State, Converter={StaticResource Equals}, ConverterParameter=InProgress}" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Done" IsChecked="{Binding Task.State, Converter={StaticResource Equals}, ConverterParameter=Done}" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Priority" Style="{StaticResource FieldLabel}" />
+                <Border Style="{StaticResource SegmentHost}">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" Content="None" IsChecked="{Binding Task.Priority, Converter={StaticResource Equals}, ConverterParameter=None}" Padding="9,0" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Low" IsChecked="{Binding Task.Priority, Converter={StaticResource Equals}, ConverterParameter=Low}" Padding="9,0" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Med" IsChecked="{Binding Task.Priority, Converter={StaticResource Equals}, ConverterParameter=Medium}" Padding="9,0" />
+                        <RadioButton Style="{StaticResource Segment}" Content="High" IsChecked="{Binding Task.Priority, Converter={StaticResource Equals}, ConverterParameter=High}" Padding="9,0" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Urgent" IsChecked="{Binding Task.Priority, Converter={StaticResource Equals}, ConverterParameter=Urgent}" Padding="9,0" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Due" Style="{StaticResource FieldLabel}" />
+                <c:DateBox SelectedDate="{Binding DueDay}" Placeholder="No due date" KeepTime="False" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasDue, Converter={StaticResource BoolToVis}}">
+                    <CheckBox Content="At a specific time" IsChecked="{Binding HasTime}" VerticalAlignment="Center" />
+                    <c:TimeBox Time="{Binding DueTime}" Margin="12,0,0,0" Width="130" MinHeight="32" Visibility="{Binding HasTime, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+
+                <TextBlock Text="Reminder" Style="{StaticResource FieldLabel}" />
+                <ComboBox ItemsSource="{x:Static vm:TaskDetailViewModel.ReminderChoices}" SelectedValuePath="Value" DisplayMemberPath="Label"
+                          SelectedValue="{Binding ReminderMinutes}" IsEnabled="{Binding HasDue}" />
+
+                <TextBlock Text="Repeat" Style="{StaticResource FieldLabel}" />
+                <ComboBox ItemsSource="{x:Static vm:TaskDetailViewModel.RepeatChoices}" SelectedValuePath="Value" DisplayMemberPath="Label"
+                          SelectedValue="{Binding Task.Repeat}" ToolTip="When you complete it, the next one is created with the following due date" />
+
+                <DockPanel Margin="0,18,0,6">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding SubtaskProgress}" Style="{StaticResource Caption}" />
+                    <TextBlock Text="Subtasks" Style="{StaticResource FieldLabel}" Margin="0" />
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Subtasks}" Focusable="False" b:DnD.IsReorderable="True" b:DnD.HandleOnly="True" b:DnD.Mode="Vertical"
+                              b:DnD.Group="subtasks" b:DnD.ReorderCommand="{Binding ReorderSubtasksCommand}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <c:AnimatedStackPanel Entrance="False" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid x:Name="row" Background="Transparent" MinHeight="32">
+                                <DockPanel>
+                                    <TextBlock x:Name="handle" DockPanel.Dock="Left" Text="{x:Static core:Glyphs.Gripper}" FontFamily="{StaticResource IconFont}" FontSize="11"
+                                               Width="18" VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}" Opacity="0" Cursor="SizeAll"
+                                               b:DnD.IsHandle="True" Background="Transparent" Padding="0,8" />
+                                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource RoundCheck}" IsChecked="{Binding IsDone}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <Button x:Name="remove" DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" FontSize="9" Opacity="0"
+                                            Command="{Binding DataContext.RemoveSubtaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    <TextBox x:Name="text" Style="{StaticResource InlineTextBox}" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="handle" Property="Opacity" Value="1" />
+                                    <Setter TargetName="remove" Property="Opacity" Value="1" />
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                    <Setter TargetName="text" Property="TextDecorations" Value="Strikethrough" />
+                                    <Setter TargetName="text" Property="Foreground" Value="{DynamicResource TextFaintBrush}" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border Margin="0,6,0,0" Padding="10,0" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource StrokeBrush}"
+                        BorderThickness="1" MinHeight="34">
+                    <DockPanel>
+                        <TextBlock Text="{x:Static core:Glyphs.Add}" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,10,0" />
+                        <TextBox Style="{StaticResource InlineTextBox}" Text="{Binding NewSubtaskText, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Add a subtask"
+                                 b:Ui.EnterCommand="{Binding AddSubtaskCommand}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+
+                <TextBlock Text="Notes" Style="{StaticResource FieldLabel}" Margin="0,18,0,6" />
+                <TextBox Style="{StaticResource MultilineTextBox}" Text="{Binding Task.Notes, UpdateSourceTrigger=PropertyChanged}" MinHeight="110" b:Ui.Placeholder="Details, links, anything…" />
+
+                <TextBlock Text="Tags" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding Task.Tags, UpdateSourceTrigger=LostFocus}" b:Ui.Placeholder="Comma separated" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

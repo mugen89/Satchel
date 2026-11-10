@@ -1,0 +1,67 @@
+<UserControl x:Class="Satchel.Controls.RichTextEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="clr-namespace:Satchel.Core"
+             x:Name="Root">
+    <DockPanel>
+        <Border x:Name="Toolbar" DockPanel.Dock="Top" Margin="0,0,0,12" Padding="4" HorizontalAlignment="Left"
+                Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                CornerRadius="{DynamicResource RadiusSmall}">
+            <WrapPanel>
+                <ToggleButton x:Name="BoldBtn" Style="{StaticResource ToolToggle}" Width="28" Height="30" Content="{x:Static core:Glyphs.Bold}" Click="OnBold" ToolTip="Bold (Ctrl+B)" />
+                <ToggleButton x:Name="ItalicBtn" Style="{StaticResource ToolToggle}" Width="28" Height="30" Content="{x:Static core:Glyphs.Italic}" Click="OnItalic" ToolTip="Italic (Ctrl+I)" />
+                <ToggleButton x:Name="UnderlineBtn" Style="{StaticResource ToolToggle}" Width="28" Height="30" Content="{x:Static core:Glyphs.Underline}" Click="OnUnderline" ToolTip="Underline (Ctrl+U)" />
+                <ToggleButton x:Name="StrikeBtn" Style="{StaticResource ToolToggle}" Width="28" Height="30" Content="{x:Static core:Glyphs.Strikethrough}" Click="OnStrike" ToolTip="Strikethrough" />
+                <Border Style="{StaticResource VDivider}" Margin="3,7" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="H1" FontFamily="{DynamicResource UiFont}" FontWeight="Bold" FontSize="12" Click="OnHeading" Tag="1" ToolTip="Heading" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="H2" FontFamily="{DynamicResource UiFont}" FontWeight="Bold" FontSize="11" Click="OnHeading" Tag="2" ToolTip="Subheading" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="¶" FontFamily="{DynamicResource UiFont}" FontSize="14" Click="OnHeading" Tag="0" ToolTip="Normal text" />
+                <Border Style="{StaticResource VDivider}" Margin="3,7" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="{x:Static core:Glyphs.BulletedList}" Click="OnBullets" ToolTip="Bulleted list" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="1." FontFamily="{DynamicResource UiFont}" FontWeight="SemiBold" FontSize="12" Click="OnNumbering" ToolTip="Numbered list" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="{x:Static core:Glyphs.Checklist}" Click="OnChecklist" ToolTip="Checklist (Ctrl+Shift+C)" />
+                <Border Style="{StaticResource VDivider}" Margin="3,7" />
+                <Grid>
+                    <Button x:Name="ColorBtn" Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Click="OnColorMenu" ToolTip="Text color">
+                        <Grid>
+                            <TextBlock Text="A" FontFamily="{DynamicResource UiFont}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" Margin="0,-3,0,0" />
+                            <Border x:Name="ColorBar" Height="3" Width="14" CornerRadius="1" VerticalAlignment="Bottom" Margin="0,0,0,-2" Background="{DynamicResource AccentBrush}" />
+                        </Grid>
+                    </Button>
+                    <Popup x:Name="ColorPopup" PlacementTarget="{Binding ElementName=ColorBtn}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                        <Border Margin="6,4,10,14" Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                                CornerRadius="{DynamicResource RadiusSmall}" Padding="10" Effect="{DynamicResource PopupShadow}">
+                            <StackPanel>
+                                <TextBlock Text="Text color" Style="{StaticResource Overline}" Margin="2,0,0,6" />
+                                <WrapPanel x:Name="TextColors" Width="196" />
+                                <TextBlock Text="Highlight" Style="{StaticResource Overline}" Margin="2,10,0,6" />
+                                <WrapPanel x:Name="HighlightColors" Width="196" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
+                <ToggleButton x:Name="CodeBtn" Style="{StaticResource ToolToggle}" Width="28" Height="30" Content="{x:Static core:Glyphs.Code}" Click="OnCode" ToolTip="Inline code" />
+                <Button Style="{StaticResource IconButtonSmall}" Width="28" Height="30" Content="Tx" FontFamily="{DynamicResource UiFont}" FontSize="12" Click="OnClearFormat" ToolTip="Clear formatting" />
+            </WrapPanel>
+        </Border>
+        <RichTextBox x:Name="Rtb" Background="Transparent" BorderThickness="0" Padding="0" AcceptsTab="True" SpellCheck.IsEnabled="True"
+                     Foreground="{DynamicResource TextBrush}" CaretBrush="{DynamicResource TextBrush}" SelectionBrush="{DynamicResource AccentBrush}"
+                     SelectionOpacity="0.35" FocusVisualStyle="{x:Null}" FontSize="15" VerticalScrollBarVisibility="Auto"
+                     ContextMenu="{DynamicResource EditContextMenu}" TextChanged="OnTextChanged" SelectionChanged="OnSelectionChanged">
+            <RichTextBox.Template>
+                <ControlTemplate TargetType="RichTextBox">
+                    <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" />
+                </ControlTemplate>
+            </RichTextBox.Template>
+            <RichTextBox.Resources>
+                <Style TargetType="Paragraph">
+                    <Setter Property="Margin" Value="0,0,0,8" />
+                </Style>
+                <Style TargetType="List">
+                    <Setter Property="Margin" Value="0,0,0,8" />
+                    <Setter Property="Padding" Value="24,0,0,0" />
+                </Style>
+            </RichTextBox.Resources>
+        </RichTextBox>
+    </DockPanel>
+</UserControl>

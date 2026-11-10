@@ -1,0 +1,510 @@
+<UserControl x:Class="Satchel.Views.Pages.GamesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:m="clr-namespace:Satchel.Models"
+             xmlns:vm="clr-namespace:Satchel.ViewModels"
+             xmlns:s="clr-namespace:Satchel.Services">
+    <UserControl.Resources>
+        <!-- Cover art: the real cover, or a generated one -->
+        <DataTemplate x:Key="GameArt" DataType="{x:Type m:Game}">
+            <Grid>
+                <Border CornerRadius="6">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="{Binding Color, Converter={StaticResource ColorKeyToColor}}" Offset="0" />
+                            <GradientStop Color="#FF1B1F27" Offset="1.2" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <TextBlock Text="{x:Static core:Glyphs.Game}" FontFamily="{StaticResource IconFont}" FontSize="26" Foreground="#40FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" Foreground="White" TextWrapping="Wrap" Margin="8" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" MaxHeight="48" />
+                    </Grid>
+                </Border>
+                <Border CornerRadius="6" ClipToBounds="True" Visibility="{Binding Cover, Converter={StaticResource HasValueToVis}}">
+                    <Image Source="{Binding Cover, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Small cover for board cards: art or just the controller icon -->
+        <DataTemplate x:Key="GameArtSmall" DataType="{x:Type m:Game}">
+            <Grid>
+                <Border CornerRadius="5">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="{Binding Color, Converter={StaticResource ColorKeyToColor}}" Offset="0" />
+                            <GradientStop Color="#FF1B1F27" Offset="1.3" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <TextBlock Text="{x:Static core:Glyphs.Game}" FontFamily="{StaticResource IconFont}" FontSize="18" Foreground="#B3FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <Border CornerRadius="5" ClipToBounds="True" Visibility="{Binding Cover, Converter={StaticResource HasValueToVis}}">
+                    <Image Source="{Binding Cover, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="BoardCard" DataType="{x:Type m:Game}">
+            <Button Style="{StaticResource CardButton}" Padding="8" Margin="0,0,0,8" HorizontalContentAlignment="Stretch"
+                    Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                <DockPanel>
+                    <ContentControl DockPanel.Dock="Left" Content="{Binding}" ContentTemplate="{StaticResource GameArtSmall}" Width="50" Height="70" Focusable="False" />
+                    <StackPanel Margin="10,2,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis">
+                            <Run Text="{Binding Platform, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding HoursText, Mode=OneWay}" />
+                        </TextBlock>
+                        <Grid Height="4" Margin="0,7,0,0" Visibility="{Binding Completion, Converter={StaticResource HasValueToVis}}">
+                            <Border Background="{DynamicResource SegmentBrush}" CornerRadius="2" />
+                            <Border Background="{DynamicResource AccentBrush}" CornerRadius="2" HorizontalAlignment="Left">
+                                <Border.Width>
+                                    <MultiBinding Converter="{StaticResource ProgressWidth}">
+                                        <Binding Path="Completion" Converter="{StaticResource Multiply}" ConverterParameter="0.01" />
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
+                                    </MultiBinding>
+                                </Border.Width>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </DockPanel>
+            </Button>
+        </DataTemplate>
+
+        <Style x:Key="GameColumn" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SegmentBrush}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Radius}" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="Width" Value="252" />
+        </Style>
+
+        <Style x:Key="StarButton" TargetType="Button" BasedOn="{StaticResource IconButtonSmall}">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFaintBrush}" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Margin="28,0,24,0">
+            <DockPanel DockPanel.Dock="Top" Margin="0,4,0,14">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- running session -->
+                    <Border CornerRadius="17" Padding="12,0,4,0" Height="34" Margin="0,0,12,0" Background="{DynamicResource AccentSubtleBrush}"
+                            Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource DangerBrush}" VerticalAlignment="Center" Margin="0,0,8,0" b:Motion.Wiggle="True" />
+                            <TextBlock VerticalAlignment="Center" FontWeight="SemiBold"><Run Text="{Binding TimerGame.Title, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding TimerText, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /></TextBlock>
+                            <Button Style="{StaticResource GhostButton}" Content="Stop" Command="{Binding StopTimerCommand}" Margin="8,0,0,0" MinHeight="26" Padding="10,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource SegmentHost}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource Segment}" b:Ui.Icon="{x:Static core:Glyphs.Tiles}" ToolTip="Board" IsChecked="{Binding IsBoardView, Mode=OneWay}" Command="{Binding ShowBoardCommand}" Padding="10,0" />
+                            <RadioButton Style="{StaticResource Segment}" b:Ui.Icon="{x:Static core:Glyphs.Grid}" ToolTip="Library" IsChecked="{Binding IsLibraryView, Mode=OneWay}" Command="{Binding ShowLibraryCommand}" Padding="10,0" />
+                        </StackPanel>
+                    </Border>
+                    <Button Content="Steam" b:Ui.Icon="{x:Static core:Glyphs.Download}" Command="{Binding OpenSteamCommand}" Margin="0,0,8,0"
+                            ToolTip="Import games and playtime from Steam" />
+                    <Button Style="{StaticResource AccentButton}" Content="Add game" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding OpenAddCommand}" ToolTip="Add a game (Ctrl+N)" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Games" Style="{StaticResource PageTitle}" />
+                    <TextBlock Style="{StaticResource Caption}">
+                        <Run Text="{Binding Playing.Count, Mode=OneWay}" /><Run Text=" playing · " /><Run Text="{Binding Backlog.Count, Mode=OneWay}" /><Run Text=" in backlog · " /><Run Text="{Binding CompletedThisYear, Mode=OneWay}" /><Run Text=" completed this year · " /><Run Text="{Binding HoursThisYear, Mode=OneWay}" /><Run Text=" h played" />
+                    </TextBlock>
+                </StackPanel>
+            </DockPanel>
+
+            <Grid>
+                <!-- board -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Visibility="{Binding IsBoardView, Converter={StaticResource BoolToVis}}" Padding="0,0,0,16">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Style="{StaticResource GameColumn}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="{x:Static core:Glyphs.Play}" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" /><Run Text="  Playing  " /><Run Text="{Binding Playing.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Playing}" ItemTemplate="{StaticResource BoardCard}" MinHeight="140" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="games" b:DnD.Mode="Vertical" b:DnD.ListTag="Playing" b:DnD.ReorderCommand="{Binding ReorderCommand}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><c:AnimatedStackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource GameColumn}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="{x:Static core:Glyphs.List}" FontFamily="{StaticResource IconFont}" FontSize="11" /><Run Text="  Backlog  " /><Run Text="{Binding Backlog.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Backlog}" ItemTemplate="{StaticResource BoardCard}" MinHeight="140" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="games" b:DnD.Mode="Vertical" b:DnD.ListTag="Backlog" b:DnD.ReorderCommand="{Binding ReorderCommand}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><c:AnimatedStackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource GameColumn}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="{x:Static core:Glyphs.Heart}" FontFamily="{StaticResource IconFont}" FontSize="11" /><Run Text="  Wishlist  " /><Run Text="{Binding Wishlist.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Wishlist}" ItemTemplate="{StaticResource BoardCard}" MinHeight="140" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="games" b:DnD.Mode="Vertical" b:DnD.ListTag="Wishlist" b:DnD.ReorderCommand="{Binding ReorderCommand}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><c:AnimatedStackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource GameColumn}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="{x:Static core:Glyphs.Completed}" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" /><Run Text="  Completed  " /><Run Text="{Binding Completed.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Completed}" ItemTemplate="{StaticResource BoardCard}" MinHeight="140" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="games" b:DnD.Mode="Vertical" b:DnD.ListTag="Completed" b:DnD.ReorderCommand="{Binding ReorderCommand}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><c:AnimatedStackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource GameColumn}" Margin="0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="{x:Static core:Glyphs.Close}" FontFamily="{StaticResource IconFont}" FontSize="10" /><Run Text="  Dropped  " /><Run Text="{Binding Dropped.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding Dropped}" ItemTemplate="{StaticResource BoardCard}" MinHeight="140" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="games" b:DnD.Mode="Vertical" b:DnD.ListTag="Dropped" b:DnD.ReorderCommand="{Binding ReorderCommand}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><c:AnimatedStackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- library -->
+                <DockPanel Visibility="{Binding IsLibraryView, Converter={StaticResource BoolToVis}}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                        <TextBox DockPanel.Dock="Left" Style="{StaticResource SearchBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}" b:Ui.Placeholder="Search games, platforms, genres"
+                                 Width="300" MinHeight="34" b:Ui.EscapeCommand="{Binding ClearSearchCommand}" Margin="0,0,12,0" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource ChipRadio}" Content="All" GroupName="gf" Margin="0,0,6,0" IsChecked="{Binding LibraryFilter, Converter={StaticResource Equals}, ConverterParameter=All, Mode=OneWay}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="All" />
+                            <RadioButton Style="{StaticResource ChipRadio}" Content="Playing" GroupName="gf" Margin="0,0,6,0" IsChecked="{Binding LibraryFilter, Converter={StaticResource Equals}, ConverterParameter=Playing, Mode=OneWay}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="Playing" />
+                            <RadioButton Style="{StaticResource ChipRadio}" Content="Backlog" GroupName="gf" Margin="0,0,6,0" IsChecked="{Binding LibraryFilter, Converter={StaticResource Equals}, ConverterParameter=Backlog, Mode=OneWay}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="Backlog" />
+                            <RadioButton Style="{StaticResource ChipRadio}" Content="Wishlist" GroupName="gf" Margin="0,0,6,0" IsChecked="{Binding LibraryFilter, Converter={StaticResource Equals}, ConverterParameter=Wishlist, Mode=OneWay}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="Wishlist" />
+                            <RadioButton Style="{StaticResource ChipRadio}" Content="Completed" GroupName="gf" Margin="0,0,6,0" IsChecked="{Binding LibraryFilter, Converter={StaticResource Equals}, ConverterParameter=Completed, Mode=OneWay}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="Completed" />
+                        </StackPanel>
+                    </DockPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,24">
+                        <ItemsControl ItemsSource="{Binding LibraryItems}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:Game}">
+                                    <Button Style="{StaticResource RowButton}" Width="160" Margin="0,0,12,16" Padding="4" VerticalContentAlignment="Top" b:Motion.Enter="True"
+                                            Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource GameArt}" Width="148" Height="222" Focusable="False" b:Motion.Lift="True" />
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="2,8,2,0" />
+                                            <TextBlock Style="{StaticResource Caption}" Margin="2,1,2,0" TextTrimming="CharacterEllipsis"><Run Text="{Binding StatusText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding HoursText, Mode=OneWay}" /></TextBlock>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" b:Motion.Enter="True">
+                    <Border Style="{StaticResource EmptyIcon}">
+                        <TextBlock Text="{x:Static core:Glyphs.Game}" Style="{StaticResource Icon}" FontSize="28" Foreground="{DynamicResource AccentTextBrush}" />
+                    </Border>
+                    <TextBlock Text="Your game shelf" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,16,0,4" />
+                    <TextBlock Text="Track what you're playing, your backlog and wishlist — time your sessions." Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                    <Button Style="{StaticResource AccentButton}" Content="Add a game" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding OpenAddCommand}" HorizontalAlignment="Center" Margin="0,18,0,0" />
+                </StackPanel>
+            </Grid>
+        </DockPanel>
+
+        <!-- ===== Detail ===== -->
+        <Border Grid.Column="1" Width="380" Style="{StaticResource DetailPanel}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="20,14,14,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.More}" b:Ui.MenuOnClick="True" ToolTip="More">
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Choose cover…" Icon="{x:Static core:Glyphs.Picture}" Command="{Binding PickCoverCommand}" />
+                                    <MenuItem Header="Paste cover" Icon="{x:Static core:Glyphs.Copy}" Command="{Binding PasteCoverCommand}" />
+                                    <MenuItem Header="Open store page" Icon="{x:Static core:Glyphs.OpenExternal}" Command="{Binding OpenStoreCommand}" />
+                                    <MenuItem Header="{Binding Selected.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}"
+                                              Icon="{x:Static core:Glyphs.Hide}" Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Selected}" />
+                                    <Separator />
+                                    <MenuItem Header="Remove game" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}" Command="{Binding DeleteGameCommand}" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                        <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" Command="{Binding CloseDetailCommand}" ToolTip="Close" />
+                    </StackPanel>
+                    <TextBlock Text="Game" Style="{StaticResource Overline}" VerticalAlignment="Center" />
+                </DockPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,10,20,24" DataContext="{Binding Selected}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Left" Content="{Binding}" ContentTemplate="{StaticResource GameArt}" Width="100" Height="150" Focusable="False" />
+                            <StackPanel Margin="14,0,0,0">
+                                <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" b:Ui.Placeholder="Title" />
+                                <TextBox Text="{Binding Genre, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" Foreground="{DynamicResource TextMutedBrush}" b:Ui.Placeholder="Genre" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button Style="{StaticResource StarButton}" Foreground="{Binding Rating, Converter={StaticResource RatingBrush}, ConverterParameter=1}" Content="{Binding Rating, Converter={StaticResource RatingStar}, ConverterParameter=1}" Command="{Binding DataContext.SetRatingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="1" />
+                                    <Button Style="{StaticResource StarButton}" Foreground="{Binding Rating, Converter={StaticResource RatingBrush}, ConverterParameter=2}" Content="{Binding Rating, Converter={StaticResource RatingStar}, ConverterParameter=2}" Command="{Binding DataContext.SetRatingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="2" />
+                                    <Button Style="{StaticResource StarButton}" Foreground="{Binding Rating, Converter={StaticResource RatingBrush}, ConverterParameter=3}" Content="{Binding Rating, Converter={StaticResource RatingStar}, ConverterParameter=3}" Command="{Binding DataContext.SetRatingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="3" />
+                                    <Button Style="{StaticResource StarButton}" Foreground="{Binding Rating, Converter={StaticResource RatingBrush}, ConverterParameter=4}" Content="{Binding Rating, Converter={StaticResource RatingStar}, ConverterParameter=4}" Command="{Binding DataContext.SetRatingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="4" />
+                                    <Button Style="{StaticResource StarButton}" Foreground="{Binding Rating, Converter={StaticResource RatingBrush}, ConverterParameter=5}" Content="{Binding Rating, Converter={StaticResource RatingStar}, ConverterParameter=5}" Command="{Binding DataContext.SetRatingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="5" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding HoursText}" FontSize="18" FontWeight="SemiBold" Margin="2,6,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <ItemsControl ItemsSource="{x:Static vm:GamesViewModel.Statuses}" Focusable="False" Margin="0,14,0,0">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton Style="{StaticResource ChipRadio}" Content="{Binding Label}" b:Ui.Icon="{Binding Glyph}" GroupName="gstatus" Margin="0,0,6,6"
+                                                 Command="{Binding DataContext.SetStatusCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Value}">
+                                        <RadioButton.IsChecked>
+                                            <MultiBinding Converter="{StaticResource AllEqual}" Mode="OneWay">
+                                                <Binding Path="Value" />
+                                                <Binding Path="DataContext.Selected.Status" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            </MultiBinding>
+                                        </RadioButton.IsChecked>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Style="{StaticResource Card}" Padding="14,12" Margin="0,10,0,0" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                            <StackPanel>
+                                <Button Style="{StaticResource AccentButton}" Content="Start session" b:Ui.Icon="{x:Static core:Glyphs.Play}" Command="{Binding StartTimerCommand}" HorizontalAlignment="Stretch"
+                                        Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                                <Button Style="{StaticResource DangerButton}" Command="{Binding StopTimerCommand}" HorizontalAlignment="Stretch" Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock><Run Text="Stop · " /><Run Text="{Binding TimerText, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /></TextBlock>
+                                </Button>
+                                <TextBlock Text="…or log time you already played" Style="{StaticResource Caption}" Margin="0,10,0,6" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Log" Command="{Binding LogSessionCommand}" MinHeight="32" Margin="6,0,0,0" />
+                                    <TextBox DockPanel.Dock="Left" Text="{Binding SessionMinutes, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Minutes" Width="80" MinHeight="32" Margin="0,0,6,0" />
+                                    <TextBox Text="{Binding SessionNote, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Note (optional)" MinHeight="32" b:Ui.EnterCommand="{Binding LogSessionCommand}" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Platform" Style="{StaticResource FieldLabel}" />
+                        <ComboBox IsEditable="True" Text="{Binding Platform, UpdateSourceTrigger=LostFocus}" ItemsSource="{x:Static vm:GamesViewModel.Platforms}" MinHeight="32" />
+                        <DockPanel Margin="0,14,0,6">
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding Completion, StringFormat={}{0}%}" Style="{StaticResource Caption}" />
+                            <TextBlock Text="Completion" Style="{StaticResource FieldLabel}" Margin="0" />
+                        </DockPanel>
+                        <Slider Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" IsSnapToTickEnabled="True" TickFrequency="5" Value="{Binding Completion}" />
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Started" Style="{StaticResource FieldLabel}" />
+                                <c:DateBox SelectedDate="{Binding StartedAt}" Placeholder="—" AllowClear="True" KeepTime="False" MinHeight="32" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Finished" Style="{StaticResource FieldLabel}" />
+                                <c:DateBox SelectedDate="{Binding FinishedAt}" Placeholder="—" AllowClear="True" KeepTime="False" MinHeight="32" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Notes" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineTextBox}" MinHeight="70" b:Ui.Placeholder="Builds, secrets, where you left off…" />
+                        <TextBlock Text="Sessions" Style="{StaticResource Overline}" Margin="0,18,0,6" />
+                        <ItemsControl ItemsSource="{Binding DataContext.Sessions, RelativeSource={RelativeSource AncestorType=UserControl}}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:PlaySession}">
+                                    <DockPanel Margin="0,0,0,5">
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding DurationText}" Style="{StaticResource Caption}" FontWeight="SemiBold" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Date, Converter={StaticResource DateFormat}, ConverterParameter=relative}" Style="{StaticResource Caption}" />
+                                            <TextBlock Text="{Binding Note}" Style="{StaticResource Caption}" Foreground="{DynamicResource TextFaintBrush}" TextWrapping="Wrap"
+                                                       Visibility="{Binding Note, Converter={StaticResource HasValueToVis}}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Add game overlay ===== -->
+        <Grid Grid.ColumnSpan="2" Background="{DynamicResource OverlayBrush}" Visibility="{Binding IsAdding, Converter={StaticResource BoolToVis}}">
+            <Border Width="600" MaxHeight="620" VerticalAlignment="Center" HorizontalAlignment="Center" Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource RadiusLarge}"
+                    Effect="{DynamicResource DialogShadow}" Padding="22,18">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" Command="{Binding CloseAddCommand}" />
+                        <TextBlock Text="Add a game" Style="{StaticResource Title}" />
+                    </DockPanel>
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource SearchBox}" Text="{Binding AddQuery, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Game title"
+                             b:Ui.EnterCommand="{Binding SearchCommand}" b:Ui.FocusOnLoad="True" MinHeight="40" />
+                    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Search" b:Ui.Icon="{x:Static core:Glyphs.Search}" Command="{Binding SearchCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Add by hand" Command="{Binding AddManualCommand}" Margin="0,0,8,0" />
+                        <TextBlock Text="Cover art from the Steam store" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Grid Margin="0,10,0,0">
+                        <TextBlock Text="{Binding SearchMessage}" Style="{StaticResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,30" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" MinHeight="120">
+                            <ItemsControl ItemsSource="{Binding SearchResults}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:GameSearchResult}">
+                                        <Border Padding="6" Margin="0,0,0,4" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource SurfaceBrush}">
+                                            <DockPanel>
+                                                <Border DockPanel.Dock="Left" Width="120" Height="45" CornerRadius="3" Background="{DynamicResource SegmentBrush}" ClipToBounds="True" Margin="0,0,12,0">
+                                                    <Image Source="{Binding Thumb}" Stretch="UniformToFill" />
+                                                </Border>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource SubtleAccentButton}" Content="Add" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.AddResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== Steam import overlay ===== -->
+        <Grid Grid.ColumnSpan="2" Background="{DynamicResource OverlayBrush}" Visibility="{Binding IsSteamOpen, Converter={StaticResource BoolToVis}}">
+            <Border Width="720" MaxHeight="680" VerticalAlignment="Center" HorizontalAlignment="Center" Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource RadiusLarge}"
+                    Effect="{DynamicResource DialogShadow}" Padding="22,18">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" Command="{Binding CloseSteamCommand}" />
+                        <Border DockPanel.Dock="Right" Style="{StaticResource SegmentHost}" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Style="{StaticResource Segment}" Content="This PC" GroupName="steamsrc" IsChecked="{Binding IsSteamLocal, Mode=OneWay}"
+                                             Command="{Binding SetSteamSourceCommand}" CommandParameter="local" Padding="12,0" />
+                                <RadioButton Style="{StaticResource Segment}" Content="Steam account" GroupName="steamsrc" IsChecked="{Binding IsSteamAccount, Mode=OneWay}"
+                                             Command="{Binding SetSteamSourceCommand}" CommandParameter="account" Padding="12,0" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="Import from Steam" Style="{StaticResource Title}" />
+                            <TextBlock Text="Pick the games to bring in. Hours played come along." Style="{StaticResource Caption}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- this PC -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,4,0,10" Visibility="{Binding IsSteamLocal, Converter={StaticResource BoolToVis}}">
+                        <Button DockPanel.Dock="Right" Content="Scan again" b:Ui.Icon="{x:Static core:Glyphs.Refresh}" Command="{Binding LoadSteamCommand}" />
+                        <TextBlock Text="{Binding SteamFolderText}" Style="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </DockPanel>
+
+                    <!-- Steam account (Web API) -->
+                    <StackPanel DockPanel.Dock="Top" Margin="0,4,0,10" Visibility="{Binding IsSteamAccount, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Profile link or SteamID" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                                <TextBox Text="{Binding SteamAccount, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="steamcommunity.com/id/yourname" MinHeight="34" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Get a key" Command="{Binding OpenSteamKeyPageCommand}" FontSize="12" />
+                                    <TextBlock Text="Web API key" Style="{StaticResource FieldLabel}" Margin="0" />
+                                </DockPanel>
+                                <c:PasswordInput Password="{Binding SteamKey}" MinHeight="34" />
+                            </StackPanel>
+                        </Grid>
+                        <DockPanel Margin="0,10,0,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Load my library" b:Ui.Icon="{x:Static core:Glyphs.Download}" Command="{Binding LoadSteamCommand}" />
+                            <TextBlock Text="✓ Using the key from your Vault" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"
+                                       Visibility="{Binding SteamKeyFromVault, Converter={StaticResource BoolToVis}}" />
+                            <CheckBox Content="Save the key in the Vault" IsChecked="{Binding SaveSteamKey}" VerticalAlignment="Center"
+                                      Visibility="{Binding SteamKeyFromVault, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        </DockPanel>
+                        <TextBlock Text="Your game list must be public (Steam → Profile → Edit profile → Privacy settings → Game details)." Style="{StaticResource Caption}"
+                                   Margin="0,8,0,0" TextWrapping="Wrap" TextTrimming="None" />
+                    </StackPanel>
+
+                    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Command="{Binding ImportSteamCommand}" MinWidth="140"
+                                IsEnabled="{Binding IsSteamBusy, Converter={StaticResource Not}}">
+                            <TextBlock><Run Text="Import " /><Run Text="{Binding SteamSelectedCount, Mode=OneWay}" /><Run Text=" games" /></TextBlock>
+                        </Button>
+                        <Button DockPanel.Dock="Right" Content="Update hours" Command="{Binding SyncSteamHoursCommand}" Margin="0,0,8,0"
+                                ToolTip="Bring the hours of games you already imported up to date" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <c:Spinner Width="18" Height="18" Margin="0,0,10,0" Visibility="{Binding IsSteamBusy, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding SteamMessage}" Style="{StaticResource Caption}" TextWrapping="Wrap" MaxWidth="380" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" Visibility="{Binding HasSteamRows, Converter={StaticResource BoolToVis}}">
+                        <CheckBox DockPanel.Dock="Right" Content="Show already imported" IsChecked="{Binding SteamShowImported}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Select all / none" Command="{Binding SelectAllSteamCommand}" />
+                        <TextBox Style="{StaticResource SearchBox}" Text="{Binding SteamFilter, UpdateSourceTrigger=PropertyChanged, Delay=150}" b:Ui.Placeholder="Filter games" MinHeight="32" />
+                    </DockPanel>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MinHeight="140">
+                        <ItemsControl ItemsSource="{Binding SteamRows}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SteamImportRow}">
+                                    <Border x:Name="row" Padding="6" Margin="0,0,0,3" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource SurfaceBrush}">
+                                        <DockPanel>
+                                            <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="4,0,10,0"
+                                                      IsEnabled="{Binding AlreadyImported, Converter={StaticResource Not}}" />
+                                            <Border DockPanel.Dock="Left" Width="92" Height="34" CornerRadius="3" Background="{DynamicResource SegmentBrush}" ClipToBounds="True" Margin="0,0,12,0">
+                                                <Image Source="{Binding ThumbUrl}" Stretch="UniformToFill" />
+                                            </Border>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="In Satchel" Style="{StaticResource Caption}" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                           Visibility="{Binding AlreadyImported, Converter={StaticResource BoolToVis}}" />
+                                                <ToggleButton Style="{StaticResource ToolToggle}" Width="30" Height="30" Content="{x:Static core:Glyphs.Hide}" IsChecked="{Binding IsPrivate}"
+                                                              ToolTip="Import as private" Visibility="{Binding AlreadyImported, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                                                <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" ToolTip="Don't show this game again"
+                                                        Command="{Binding DataContext.HideSteamGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Style="{StaticResource Caption}"><Run Text="{Binding HoursText, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding LastText, Mode=OneWay}" /></TextBlock>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding AlreadyImported}" Value="True">
+                                            <Setter TargetName="row" Property="Opacity" Value="0.6" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

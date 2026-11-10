@@ -1,0 +1,467 @@
+<UserControl x:Class="Satchel.Views.Pages.VaultView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:m="clr-namespace:Satchel.Models"
+             xmlns:vm="clr-namespace:Satchel.ViewModels">
+    <UserControl.Resources>
+        <ContextMenu x:Key="ProfileMenu" x:Shared="False">
+            <MenuItem Header="Edit profile…" Icon="{x:Static core:Glyphs.Edit}"
+                      Command="{Binding PlacementTarget.Tag.EditProfileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+            <MenuItem Header="Favorite / unfavorite" Icon="{x:Static core:Glyphs.Star}"
+                      Command="{Binding PlacementTarget.Tag.ToggleProfileFavoriteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+            <MenuItem Header="{Binding IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark profile private'}" Icon="{x:Static core:Glyphs.Hide}"
+                      Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding}" />
+            <Separator />
+            <MenuItem Header="Delete profile" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}"
+                      Command="{Binding PlacementTarget.Tag.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+        </ContextMenu>
+
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,1" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        </Style>
+
+        <!-- Field row on an account card -->
+        <DataTemplate x:Key="FieldRowTemplate" DataType="{x:Type vm:FieldRow}">
+            <Grid x:Name="row" Background="Transparent" MinHeight="38">
+                <Border x:Name="hover" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource HoverOverlayBrush}" Opacity="0" Margin="-10,0" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource TextFaintBrush}" VerticalAlignment="Center" Width="18" />
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center" MaxWidth="120" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,6">
+                        <TextBlock x:Name="value" Text="{Binding Display}" TextWrapping="Wrap" VerticalAlignment="Center" MaxWidth="420" />
+                        <c:ColoredPasswordText x:Name="colored" Password="{Binding Value}" FontFamily="{StaticResource MonoFont}" TextWrapping="Wrap" MaxWidth="420"
+                                               VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Border x:Name="strength" CornerRadius="8" Padding="7,0" Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
+                                Background="{DynamicResource SurfaceHoverBrush}">
+                            <TextBlock Text="{Binding Strength.Label}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{Binding Strength.Score, Converter={StaticResource StrengthBrush}}" />
+                        </Border>
+                    </StackPanel>
+                    <StackPanel x:Name="actions" Grid.Column="2" Orientation="Horizontal" Opacity="0.55" VerticalAlignment="Center">
+                        <Button x:Name="reveal" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.View}" Command="{Binding ToggleRevealCommand}"
+                                ToolTip="Show / hide" Visibility="{Binding IsSecret, Converter={StaticResource BoolToVis}}" />
+                        <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.OpenExternal}" Command="{Binding OpenCommand}" ToolTip="Open"
+                                Visibility="{Binding CanOpen, Converter={StaticResource BoolToVis}}" />
+                        <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Copy}" Command="{Binding CopyCommand}" ToolTip="Copy" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="hover" Property="Opacity" Value="1" />
+                    <Setter TargetName="actions" Property="Opacity" Value="1" />
+                </Trigger>
+                <DataTrigger Binding="{Binding IsSecret}" Value="True">
+                    <Setter TargetName="value" Property="FontFamily" Value="{StaticResource MonoFont}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsRevealed}" Value="True">
+                    <Setter TargetName="reveal" Property="Content" Value="{x:Static core:Glyphs.Hide}" />
+                </DataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsPassword}" Value="True" />
+                        <Condition Binding="{Binding IsRevealed}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter TargetName="value" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="colored" Property="Visibility" Value="Visible" />
+                </MultiDataTrigger>
+                <DataTrigger Binding="{Binding IsPassword}" Value="True">
+                    <Setter TargetName="strength" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsUrl}" Value="True">
+                    <Setter TargetName="value" Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Account card -->
+        <DataTemplate x:Key="AccountCard" DataType="{x:Type vm:AccountItemViewModel}">
+            <Grid Margin="0,0,0,12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="{DynamicResource Radius}" Effect="{DynamicResource CardShadow}" />
+                <Border x:Name="card" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1" CornerRadius="{DynamicResource Radius}">
+                    <StackPanel>
+                        <DockPanel x:Name="header" Margin="16,14,12,14" Background="Transparent" b:DnD.IsHandle="True" Cursor="Hand" ToolTip="Drag to reorder"
+                                   MouseLeftButtonUp="OnAccountHeaderClick">
+                            <c:Avatar Image="{Binding Account.Image}" Glyph="{Binding KindGlyph}" ColorKey="{Binding DataContext.SelectedProfile.Color, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      Size="42" VerticalAlignment="Center" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="star" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Star}" ToolTip="Favorite" b:DnD.NoDrag="True"
+                                        Command="{Binding DataContext.ToggleAccountFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Edit}" ToolTip="Edit" b:DnD.NoDrag="True"
+                                        Command="{Binding DataContext.EditAccountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.More}" ToolTip="More" b:Ui.MenuOnClick="True" b:DnD.NoDrag="True"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Duplicate" Icon="{x:Static core:Glyphs.Copy}"
+                                                      Command="{Binding PlacementTarget.Tag.DuplicateAccountCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                            <MenuItem Header="Move to profile" Icon="{x:Static core:Glyphs.Forward}"
+                                                      ItemsSource="{Binding PlacementTarget.Tag.Profiles, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                <MenuItem.ItemContainerStyle>
+                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                        <Setter Property="Header" Value="{Binding Name}" />
+                                                        <EventSetter Event="Click" Handler="OnMoveAccountClick" />
+                                                    </Style>
+                                                </MenuItem.ItemContainerStyle>
+                                            </MenuItem>
+                                            <MenuItem Header="{Binding IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}" Icon="{x:Static core:Glyphs.Hide}"
+                                                      Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding}" />
+                                            <Separator />
+                                            <MenuItem Header="Delete account" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}"
+                                                      Command="{Binding PlacementTarget.Tag.DeleteAccountCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                                <Button x:Name="chevron" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.ChevronUp}" FontSize="10" b:DnD.NoDrag="True"
+                                        Command="{Binding ToggleExpandedCommand}" ToolTip="Collapse / expand" />
+                            </StackPanel>
+                            <StackPanel Margin="14,0,8,0" VerticalAlignment="Center">
+                                <WrapPanel>
+                                    <TextBlock Text="{Binding Account.DisplayName}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="280" Margin="0,1,0,1" />
+                                    <Border Style="{StaticResource Badge}">
+                                        <TextBlock Text="{Binding KindName}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource InfoSubtleBrush}" Visibility="{Binding HasSignIn, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding SignInText}" FontSize="11" Foreground="{DynamicResource InfoBrush}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource WarningSubtleBrush}" Visibility="{Binding HasIssues, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{x:Static core:Glyphs.Warning}" FontFamily="{StaticResource IconFont}" FontSize="10" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Text="Needs attention" FontSize="11" Margin="5,0,0,0" Foreground="{DynamicResource WarningBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                </WrapPanel>
+                                <TextBlock Text="{Binding Account.Subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <StackPanel x:Name="body" Margin="18,0,18,14">
+                            <Border Style="{StaticResource Divider}" Margin="0,0,0,10" />
+                            <ItemsControl ItemsSource="{Binding Issues}" Focusable="False" Margin="0,0,0,8" Visibility="{Binding HasIssues, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource WarningSubtleBrush}" Padding="9,4" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{x:Static core:Glyphs.Warning}" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding}" FontSize="12" Margin="7,0,0,0" Foreground="{DynamicResource TextBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource FieldRowTemplate}" Focusable="False" />
+
+                            <Grid MinHeight="40" Visibility="{Binding HasTotp, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Static core:Glyphs.Shield}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource TextFaintBrush}" Width="18" />
+                                    <TextBlock Text="One-time code" Style="{StaticResource Muted}" Margin="8,0,0,0" />
+                                </StackPanel>
+                                <c:TotpBadge Grid.Column="1" Secret="{Binding Account.TotpSecret}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding TagList}" ItemTemplate="{StaticResource TagChip}" Margin="0,10,0,0" Focusable="False"
+                                          Visibility="{Binding HasTags, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+
+                            <Border Background="{DynamicResource InputBrush}" CornerRadius="{DynamicResource RadiusSmall}" Padding="12,10" Margin="0,10,0,0"
+                                    Visibility="{Binding HasNotes, Converter={StaticResource BoolToVis}}">
+                                <TextBox Text="{Binding Account.Notes, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource InlineTextBox}" TextWrapping="Wrap"
+                                         Foreground="{DynamicResource TextMutedBrush}" />
+                            </Border>
+
+                            <DockPanel Margin="0,12,0,0">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="{Binding HistoryHeader}" Command="{Binding ToggleHistoryCommand}" FontSize="12"
+                                        Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{Binding FooterText}" Style="{StaticResource Caption}" Foreground="{DynamicResource TextFaintBrush}" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding History}" Margin="0,8,0,0" Focusable="False" Visibility="{Binding ShowHistory, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,2">
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Copy}" ToolTip="Copy old password"
+                                                    Command="{Binding DataContext.CopyHistoryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}" CommandParameter="{Binding}" />
+                                            <TextBlock Text="{Binding ChangedAt, Converter={StaticResource DateFormat}, ConverterParameter=datetime}" Style="{StaticResource Caption}" Width="150" VerticalAlignment="Center" />
+                                            <TextBlock Text="••••••••••" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsExpanded}" Value="False">
+                    <Setter TargetName="body" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="chevron" Property="Content" Value="{x:Static core:Glyphs.ChevronDown}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Account.IsFavorite}" Value="True">
+                    <Setter TargetName="star" Property="Content" Value="{x:Static core:Glyphs.StarFilled}" />
+                    <Setter TargetName="star" Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+                    <Setter TargetName="card" Property="BorderThickness" Value="1.5" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <DataTemplate x:Key="VaultFilter" DataType="{x:Type vm:SideFilter}">
+            <RadioButton Style="{StaticResource SideItem}" GroupName="vaultFilter" Content="{Binding Title}" b:Ui.Icon="{Binding Glyph}" b:Ui.IconBrush="{Binding IconBrush}"
+                         b:Ui.Badge="{Binding Badge}" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                         Command="{Binding DataContext.SelectFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== Side panel ===== -->
+        <Border Style="{StaticResource SidePanel}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Vault" Style="{StaticResource PageTitle}" Margin="10,4,0,16" />
+                <Button DockPanel.Dock="Top" Style="{StaticResource AccentButton}" Content="New profile" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewProfileCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,14" ToolTip="New profile (Ctrl+N)" />
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="4,8,0,0">
+                    <Button Style="{StaticResource RowButton}" Command="{Binding OpenGeneratorCommand}" Padding="8,7">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{x:Static core:Glyphs.Lightning}" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="Password generator" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource RowButton}" Command="{Binding ImportCsvCommand}" Padding="8,7">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{x:Static core:Glyphs.Import}" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="Import from browser (CSV)" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource RowButton}" Command="{Binding ExportCsvCommand}" Padding="8,7">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{x:Static core:Glyphs.Export}" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="Export (CSV)" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-8,0" Padding="0,0,8,0">
+                    <StackPanel>
+                        <!-- Health score -->
+                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1" CornerRadius="{DynamicResource Radius}"
+                                Padding="14,12" Margin="0,0,0,12" Cursor="Hand" MouseLeftButtonUp="OnScoreClick" ToolTip="Password health">
+                            <DockPanel>
+                                <Grid Width="48" Height="48">
+                                    <c:ProgressRing Progress="{Binding ScoreFraction}" Thickness="5" />
+                                    <TextBlock Text="{Binding Score}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ScoreText}" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}">
+                                        <Run Text="{Binding TotalAccounts, Mode=OneWay}" /><Run Text=" passwords · " /><Run Text="{Binding IssueCount, Mode=OneWay}" /><Run Text=" issues" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding MainFilters}" ItemTemplate="{StaticResource VaultFilter}" Focusable="False" />
+                        <TextBlock Text="Password health" Style="{StaticResource SectionLabel}" />
+                        <ItemsControl ItemsSource="{Binding HealthFilters}" ItemTemplate="{StaticResource VaultFilter}" Focusable="False" />
+                        <TextBlock Text="Categories" Style="{StaticResource SectionLabel}" Visibility="{Binding CategoryFilters.Count, Converter={StaticResource HasValueToVis}}" />
+                        <ItemsControl ItemsSource="{Binding CategoryFilters}" ItemTemplate="{StaticResource VaultFilter}" Focusable="False" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Profiles list ===== -->
+        <Border Grid.Column="1" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,0,1,0" Padding="14,0,10,0">
+            <DockPanel>
+                <TextBox DockPanel.Dock="Top" x:Name="SearchBox" Style="{StaticResource SearchBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}"
+                         b:Ui.Placeholder="Search vault" Margin="0,8,4,12" MinHeight="36" b:Ui.EscapeCommand="{Binding ClearSearchCommand}" />
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-10,0" Padding="0,0,10,0">
+                        <ItemsControl ItemsSource="{Binding Profiles}" Focusable="False" Margin="0,0,0,16"
+                                      b:DnD.IsReorderable="{Binding CanReorder}" b:DnD.Group="profiles" b:DnD.Mode="Vertical" b:DnD.ReorderCommand="{Binding ReorderProfilesCommand}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <c:AnimatedStackPanel Spacing="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:VaultProfile}">
+                                    <Grid>
+                                        <Border x:Name="sel" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource AccentSubtleBrush}" Opacity="0" />
+                                        <Button x:Name="row" Style="{StaticResource RowButton}" Padding="10,8"
+                                                Command="{Binding DataContext.SelectProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}" ContextMenu="{StaticResource ProfileMenu}"
+                                                b:DnD.Group="account" b:DnD.DropCommand="{Binding DataContext.DropOnProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                            <DockPanel>
+                                                <c:Avatar Image="{Binding Image}" Text="{Binding Name}" Glyph="{Binding Icon}" ColorKey="{Binding Color}" Size="38" />
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource WarningBrush}" Margin="6,0,0,0" ToolTip="Has password issues"
+                                                             Visibility="{Binding IssueCount, Converter={StaticResource HasValueToVis}}" />
+                                                    <TextBlock Text="{x:Static core:Glyphs.StarFilled}" FontFamily="{StaticResource IconFont}" FontSize="11" Margin="6,0,0,0"
+                                                               Foreground="{DynamicResource WarningBrush}" Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}" />
+                                                </StackPanel>
+                                                <StackPanel Margin="12,0,4,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding ListSubtitle}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Button>
+                                        <Border x:Name="drop" CornerRadius="{DynamicResource RadiusSmall}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5" Opacity="0" IsHitTestVisible="False" />
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource SameObject}">
+                                                    <Binding />
+                                                    <Binding Path="DataContext.SelectedProfile" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter TargetName="sel" Property="Opacity" Value="1" />
+                                        </DataTrigger>
+                                        <Trigger SourceName="row" Property="b:DnD.IsDragOver" Value="True">
+                                            <Setter TargetName="drop" Property="Opacity" Value="1" />
+                                        </Trigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <StackPanel VerticalAlignment="Top" Margin="10,40,10,0" Visibility="{Binding IsListEmpty, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Nothing here" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" />
+                        <TextBlock Text="No profiles match this view." Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Detail ===== -->
+        <Grid Grid.Column="2">
+            <!-- Vault empty -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420" Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
+                        b:Motion.Enter="True">
+                <Border Style="{StaticResource EmptyIcon}" Width="88" Height="88" CornerRadius="44">
+                    <TextBlock Text="{x:Static core:Glyphs.Shield}" Style="{StaticResource Icon}" FontSize="36" Foreground="{DynamicResource AccentTextBrush}" />
+                </Border>
+                <TextBlock Text="Your vault is empty" Style="{StaticResource Title}" HorizontalAlignment="Center" Margin="0,18,0,6" />
+                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" TextAlignment="Center"
+                           Text="Create a profile for each service — Google, your bank, your Wi-Fi — then add one or more accounts under it. Everything is encrypted." />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                    <Button Style="{StaticResource AccentButton}" Content="Create a profile" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewProfileCommand}" />
+                    <Button Content="Import CSV" b:Ui.Icon="{x:Static core:Glyphs.Import}" Command="{Binding ImportCsvCommand}" Margin="10,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+
+            <ScrollViewer x:Name="DetailScroll" VerticalScrollBarVisibility="Auto" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+                <StackPanel x:Name="DetailContent" Margin="26,6,26,28">
+                    <!-- Profile header -->
+                    <Grid>
+                        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="{DynamicResource RadiusLarge}" Effect="{DynamicResource CardShadow}" />
+                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusLarge}"
+                                Padding="22" ClipToBounds="True">
+                            <Grid>
+                                <Border Height="72" Margin="-22,-22,-22,0" VerticalAlignment="Top" Opacity="0.5" CornerRadius="0"
+                                        Background="{Binding SelectedProfile.Color, Converter={StaticResource PaletteBrush}, ConverterParameter=subtle}" />
+                                <DockPanel>
+                                    <c:Avatar Image="{Binding SelectedProfile.Image}" Text="{Binding SelectedProfile.Name}" Glyph="{Binding SelectedProfile.Icon}"
+                                              ColorKey="{Binding SelectedProfile.Color}" Size="76" Solid="True" VerticalAlignment="Top" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                        <Button x:Name="FavButton" Style="{StaticResource IconButton}" Command="{Binding ToggleProfileFavoriteCommand}" CommandParameter="{Binding SelectedProfile}" ToolTip="Favorite">
+                                            <Button.Content>
+                                                <Binding Path="SelectedProfile.IsFavorite" Converter="{StaticResource BoolToString}" ConverterParameter="&#xE735;|&#xE734;" />
+                                            </Button.Content>
+                                        </Button>
+                                        <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Edit}" Command="{Binding EditProfileCommand}" CommandParameter="{Binding SelectedProfile}" ToolTip="Edit profile" />
+                                        <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Delete}" Command="{Binding DeleteProfileCommand}" CommandParameter="{Binding SelectedProfile}"
+                                                ToolTip="Delete profile" />
+                                    </StackPanel>
+                                    <StackPanel Margin="20,6,0,0">
+                                        <TextBlock Text="{Binding SelectedProfile.Name}" Style="{StaticResource PageTitle}" FontSize="25" />
+                                        <TextBlock Text="{Binding SelectedSubtitle}" Style="{StaticResource Muted}" Margin="0,2,0,0" />
+                                        <WrapPanel Margin="0,10,0,0">
+                                            <Button Style="{StaticResource SubtleAccentButton}" MinHeight="28" Padding="10,0" Margin="0,0,8,6" b:Ui.Icon="{x:Static core:Glyphs.Globe}"
+                                                    Content="{Binding SelectedProfile.Website}" Command="{x:Static b:UiCommands.OpenUrl}" CommandParameter="{Binding SelectedProfile.Website}"
+                                                    Visibility="{Binding SelectedProfile.HasWebsite, Converter={StaticResource BoolToVis}}" FontWeight="Normal" ToolTip="Open in browser" />
+                                            <ItemsControl ItemsSource="{Binding SelectedProfile.TagList}" ItemTemplate="{StaticResource TagChip}" Focusable="False" VerticalAlignment="Center">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                            </ItemsControl>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding SelectedProfile.Notes}" Style="{StaticResource Body}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
+                                                   Visibility="{Binding SelectedProfile.HasNotes, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <DockPanel Margin="2,26,0,12">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource SubtleAccentButton}" Content="Add account" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewAccountCommand}" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Accounts" Style="{StaticResource Subtitle}" FontSize="16" />
+                            <TextBlock Text="{Binding Accounts.Count}" Style="{StaticResource Muted}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <ItemsControl ItemsSource="{Binding Accounts}" ItemTemplate="{StaticResource AccountCard}" Focusable="False"
+                                  b:DnD.IsReorderable="True" b:DnD.HandleOnly="True" b:DnD.Mode="Vertical" b:DnD.Group="account"
+                                  b:DnD.ReorderCommand="{Binding ReorderAccountsCommand}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <c:AnimatedStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+
+                    <Border CornerRadius="{DynamicResource Radius}" BorderBrush="{DynamicResource StrokeStrongBrush}" BorderThickness="1.5" Padding="20" Cursor="Hand"
+                            Visibility="{Binding Accounts.Count, Converter={StaticResource HasValueToVis}, ConverterParameter=invert}" MouseLeftButtonUp="OnAddAccountHint">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{x:Static core:Glyphs.AddPerson}" Style="{StaticResource Icon}" FontSize="22" Foreground="{DynamicResource AccentTextBrush}" />
+                            <TextBlock Text="Add the first account" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,2" />
+                            <TextBlock Text="One profile can hold several accounts — e.g. Personal and Work logins for the same service." Style="{StaticResource Caption}"
+                                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="360" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

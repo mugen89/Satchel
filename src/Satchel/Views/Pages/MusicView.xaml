@@ -1,0 +1,297 @@
+<UserControl x:Class="Satchel.Views.Pages.MusicView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:m="clr-namespace:Satchel.Models">
+    <UserControl.Resources>
+        <Style x:Key="TransportButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+
+        <DataTemplate x:Key="TrackRow" DataType="{x:Type m:MusicTrack}">
+            <Grid x:Name="row" Background="Transparent" Margin="0,0,0,2">
+                <Border x:Name="hover" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource HoverOverlayBrush}" Opacity="0" />
+                <Border x:Name="current" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource AccentSubtleBrush}" Opacity="0" />
+                <DockPanel Margin="8,6">
+                    <Grid DockPanel.Dock="Left" Width="64" Height="36" Margin="0,0,14,0">
+                        <Border CornerRadius="5" ClipToBounds="True" Background="{DynamicResource SegmentBrush}">
+                            <Image Source="{Binding Thumbnail, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Border>
+                        <Border x:Name="playOverlay" CornerRadius="5" Background="#99000000" Opacity="0">
+                            <TextBlock x:Name="playGlyph" Text="{x:Static core:Glyphs.Play}" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="&#xE783;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource WarningBrush}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                   ToolTip="The owner doesn't allow playing this outside YouTube — it's skipped" Visibility="{Binding CannotEmbed, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding DurationText}" Style="{StaticResource Caption}" VerticalAlignment="Center" MinWidth="44" TextAlignment="Right" />
+                        <Button x:Name="more" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.More}" b:Ui.MenuOnClick="True" Margin="6,0,0,0" Opacity="0" ToolTip="More">
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Play next" Icon="{x:Static core:Glyphs.Play}"
+                                              Command="{Binding PlacementTarget.DataContext.PlayNextTrackCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                    <MenuItem Header="Move to playlist…" Icon="{x:Static core:Glyphs.Folder}"
+                                              Command="{Binding PlacementTarget.DataContext.MoveTrackCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                    <MenuItem Header="Open on YouTube" Icon="{x:Static core:Glyphs.OpenExternal}"
+                                              Command="{Binding PlacementTarget.DataContext.OpenOnYouTubeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                    <Separator />
+                                    <MenuItem Header="Remove" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}"
+                                              Command="{Binding PlacementTarget.DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="title" Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Artist}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </DockPanel>
+                <Button Style="{StaticResource RowButton}" Opacity="0" Margin="0,0,80,0" Cursor="Hand" ToolTip="Play"
+                        Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+            </Grid>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="hover" Property="Opacity" Value="1" />
+                    <Setter TargetName="playOverlay" Property="Opacity" Value="1" />
+                    <Setter TargetName="more" Property="Opacity" Value="1" />
+                </Trigger>
+                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                    <Setter TargetName="current" Property="Opacity" Value="1" />
+                    <Setter TargetName="title" Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                    <Setter TargetName="playOverlay" Property="Opacity" Value="1" />
+                    <Setter TargetName="playGlyph" Property="Text" Value="&#xE995;" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding CannotEmbed}" Value="True">
+                    <Setter TargetName="title" Property="Foreground" Value="{DynamicResource TextFaintBrush}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== Side panel ===== -->
+        <Border Style="{StaticResource SidePanel}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Music" Style="{StaticResource PageTitle}" Margin="6,4,0,12" />
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <Button Style="{StaticResource AccentButton}" Content="Add music" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding OpenAddCommand}" HorizontalAlignment="Stretch"
+                            ToolTip="Paste YouTube or YouTube Music links (Ctrl+N)" />
+                    <TextBlock Text="Plays in the background while you use the rest of Satchel — and keeps going when it locks." Style="{StaticResource Caption}" TextWrapping="Wrap"
+                               TextTrimming="None" Margin="4,10,0,0" />
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-8,0" Padding="0,0,8,0">
+                    <StackPanel>
+                        <RadioButton Style="{StaticResource SideItem}" Content="Playing queue" b:Ui.Icon="{x:Static core:Glyphs.Music}"
+                                     b:Ui.Badge="{Binding Player.Queue.Count, Converter={StaticResource CountBadge}}"
+                                     IsChecked="{Binding ShowQueue, Mode=OneWay}" Command="{Binding ShowQueueViewCommand}" />
+                        <DockPanel Margin="0,8,0,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Add}" Command="{Binding NewPlaylistCommand}" ToolTip="New playlist"
+                                    FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                            <TextBlock Text="Playlists" Style="{StaticResource SectionLabel}" />
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Playlists}" Focusable="False" b:DnD.IsReorderable="True" b:DnD.Group="playlists" b:DnD.Mode="Vertical"
+                                      b:DnD.ReorderCommand="{Binding ReorderPlaylistsCommand}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <c:AnimatedStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:MusicPlaylist}">
+                                    <RadioButton Style="{StaticResource SideItem}" Content="{Binding Name}" b:Ui.Icon="{x:Static core:Glyphs.List}" GroupName="playlists"
+                                                 b:Ui.IconBrush="{Binding Color, Converter={StaticResource PaletteBrush}}" b:Ui.Badge="{Binding TrackCount, Converter={StaticResource CountBadge}}"
+                                                 Command="{Binding DataContext.SelectPlaylistCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <RadioButton.IsChecked>
+                                            <MultiBinding Converter="{StaticResource SameObject}" Mode="OneWay">
+                                                <Binding />
+                                                <Binding Path="DataContext.Selected" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            </MultiBinding>
+                                        </RadioButton.IsChecked>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="No playlists yet." Style="{StaticResource Caption}" Margin="10,4,0,0" Visibility="{Binding HasPlaylists, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Main ===== -->
+        <DockPanel Grid.Column="1" Margin="28,0,24,0">
+            <!-- now playing -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Padding="16" Margin="0,4,0,18" Visibility="{Binding Player.HasTrack, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="VideoSlot" Width="288" Height="162" CornerRadius="{DynamicResource RadiusSmall}" ClipToBounds="True" Background="#FF101114">
+                        <Grid>
+                            <Image Source="{Binding Player.Thumbnail, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                            <Border Background="#33000000" />
+                            <c:Spinner Width="34" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding Player.IsBuffering, Converter={StaticResource BoolToVis}}" />
+                        </Grid>
+                    </Border>
+                    <DockPanel Grid.Column="1" Margin="20,0,0,0">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="{Binding Player.SourceName, StringFormat=Playing from {0}}" Style="{StaticResource Overline}" />
+                            <TextBlock Text="{Binding Player.Title}" FontFamily="{StaticResource DisplayFont}" FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                            <TextBlock Text="{Binding Player.Artist}" Style="{StaticResource Muted}" FontSize="14" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom">
+                            <!-- seek bar: click anywhere to jump -->
+                            <Grid x:Name="SeekBar" Height="16" Background="Transparent" Cursor="Hand" MouseLeftButtonDown="OnSeek" ToolTip="Click to jump">
+                                <Border x:Name="SeekTrack" Height="5" CornerRadius="2.5" Background="{DynamicResource SegmentBrush}" VerticalAlignment="Center" />
+                                <Border Height="5" CornerRadius="2.5" Background="{DynamicResource AccentBrush}" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <Border.Width>
+                                        <MultiBinding Converter="{StaticResource ProgressWidth}">
+                                            <Binding Path="Player.Progress" />
+                                            <Binding Path="ActualWidth" ElementName="SeekTrack" />
+                                        </MultiBinding>
+                                    </Border.Width>
+                                </Border>
+                            </Grid>
+                            <DockPanel Margin="0,2,0,6">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding Player.DurationText}" Style="{StaticResource Caption}" FontFamily="{StaticResource MonoFont}" />
+                                <TextBlock Text="{Binding Player.PositionText}" Style="{StaticResource Caption}" FontFamily="{StaticResource MonoFont}" />
+                            </DockPanel>
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Player.VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                    <Slider Width="110" Minimum="0" Maximum="100" Value="{Binding Player.Volume}" VerticalAlignment="Center" ToolTip="Volume (Ctrl+Shift+↑/↓)" />
+                                    <ToggleButton Style="{StaticResource Chip}" Content="Video" b:Ui.Icon="{x:Static core:Glyphs.Video}" IsChecked="{Binding ShowVideo}" Margin="12,0,0,0"
+                                                  ToolTip="Show the video instead of the cover" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource ToolToggle}" Width="34" Height="34" Content="{x:Static core:Glyphs.Shuffle}" IsChecked="{Binding Player.Shuffle}"
+                                                  ToolTip="Shuffle" Margin="0,0,4,0" />
+                                    <Button Style="{StaticResource TransportButton}" Content="&#xE892;" Command="{Binding Player.PreviousCommand}" ToolTip="Previous (Ctrl+Shift+←)" />
+                                    <Button Style="{StaticResource AccentButton}" Width="46" Height="46" MinHeight="0" Padding="0" FontFamily="{StaticResource IconFont}" FontSize="17"
+                                            Command="{Binding Player.PlayPauseCommand}" ToolTip="Play / pause (Ctrl+Shift+Space)" Margin="4,0"
+                                            Content="{Binding Player.IsPlaying, Converter={StaticResource BoolToString}, ConverterParameter=&#xE769;|&#xE768;}" />
+                                    <Button Style="{StaticResource TransportButton}" Content="&#xE893;" Command="{Binding Player.NextCommand}" ToolTip="Next (Ctrl+Shift+→)" />
+                                    <ToggleButton Style="{StaticResource ToolToggle}" Width="34" Height="34" Content="{Binding Player.RepeatGlyph}" IsChecked="{Binding Player.RepeatOn, Mode=OneWay}"
+                                                  Command="{Binding Player.CycleRepeatCommand}" ToolTip="Repeat: all → one → off" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                        <Grid />
+                    </DockPanel>
+                </Grid>
+            </Border>
+
+            <!-- header -->
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox Style="{StaticResource SearchBox}" Width="200" MinHeight="34" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=200}" b:Ui.Placeholder="Filter tracks"
+                             b:Ui.EscapeCommand="{Binding ClearSearchCommand}" Margin="0,0,10,0" Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                    <Button Content="Shuffle" b:Ui.Icon="{x:Static core:Glyphs.Shuffle}" Command="{Binding ShuffleAllCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                    <Button Style="{StaticResource AccentButton}" Content="Play all" b:Ui.Icon="{x:Static core:Glyphs.Play}" Command="{Binding PlayAllCommand}"
+                            Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                    <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.More}" b:Ui.MenuOnClick="True" Margin="6,0,0,0" ToolTip="Playlist options"
+                            Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Add links…" Icon="{x:Static core:Glyphs.Add}" Command="{Binding OpenAddCommand}" />
+                                <MenuItem Header="Rename…" Icon="{x:Static core:Glyphs.Edit}" Command="{Binding RenamePlaylistCommand}" />
+                                <MenuItem Header="{Binding Selected.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}"
+                                          Icon="{x:Static core:Glyphs.Hide}" Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Selected}"
+                                          xmlns:s="clr-namespace:Satchel.Services" />
+                                <Separator />
+                                <MenuItem Header="Delete playlist" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}" Command="{Binding DeletePlaylistCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <Button Content="Stop" b:Ui.Icon="&#xE71A;" Command="{Binding Player.StopCommand}"
+                            Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}}" ToolTip="Stop and clear the queue" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource Title}" FontSize="20" />
+                    <TextBlock Text="{Binding HeaderInfo}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </DockPanel>
+
+            <Grid>
+                <!-- playlist tracks -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,20" Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                    <ItemsControl ItemsSource="{Binding Tracks}" ItemTemplate="{StaticResource TrackRow}" Focusable="False"
+                                  b:DnD.IsReorderable="True" b:DnD.Group="tracks" b:DnD.Mode="Vertical" b:DnD.ReorderCommand="{Binding ReorderTracksCommand}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <c:AnimatedStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+                <!-- queue -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,20" Visibility="{Binding ShowQueue, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl ItemsSource="{Binding Player.Queue}" ItemTemplate="{StaticResource TrackRow}" Focusable="False" />
+                </ScrollViewer>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" b:Motion.Enter="True">
+                    <Border Style="{StaticResource EmptyIcon}">
+                        <TextBlock Text="{x:Static core:Glyphs.Music}" Style="{StaticResource Icon}" FontSize="28" Foreground="{DynamicResource AccentTextBrush}" />
+                    </Border>
+                    <TextBlock Text="Your music, in the background" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,16,0,4" />
+                    <TextBlock Text="Paste YouTube or YouTube Music links — songs, mixes, whole playlists." Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                    <Button Style="{StaticResource AccentButton}" Content="Add music" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding OpenAddCommand}" HorizontalAlignment="Center" Margin="0,18,0,0" />
+                </StackPanel>
+                <TextBlock Text="Nothing is playing. Pick a playlist and press Play all." HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding ShowQueue}" Value="True" />
+                                        <Condition Binding="{Binding Player.HasTrack}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </DockPanel>
+
+        <!-- ===== Add music overlay ===== -->
+        <Grid Grid.ColumnSpan="2" Background="{DynamicResource OverlayBrush}" Visibility="{Binding IsAdding, Converter={StaticResource BoolToVis}}">
+            <Border Width="600" VerticalAlignment="Center" HorizontalAlignment="Center" Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource RadiusLarge}"
+                    Effect="{DynamicResource DialogShadow}" Padding="22,18">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" Command="{Binding CloseAddCommand}" />
+                        <TextBlock Text="Add music" Style="{StaticResource Title}" />
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" TextTrimming="None">
+                        <Run Text="Paste YouTube or YouTube Music links, one per line. Songs go into" /> <Run Text="{Binding Selected.Name, Mode=OneWay, TargetNullValue='a new playlist'}" FontWeight="SemiBold" /><Run Text="; a playlist link imports the whole playlist." />
+                    </TextBlock>
+                    <TextBox Style="{StaticResource MultilineTextBox}" Text="{Binding AddText, UpdateSourceTrigger=PropertyChanged}" MinHeight="150" MaxHeight="260" Margin="0,14,0,0"
+                             b:Ui.Placeholder="https://music.youtube.com/watch?v=…&#x0a;https://www.youtube.com/playlist?list=…" b:Ui.FocusOnLoad="True" FontFamily="{StaticResource MonoFont}" FontSize="12.5" />
+                    <DockPanel Margin="0,14,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Add" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding AddLinksCommand}"
+                                IsEnabled="{Binding IsWorking, Converter={StaticResource Not}}" MinWidth="100" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsWorking, Converter={StaticResource BoolToVis}}">
+                            <c:Spinner Width="18" Height="18" Margin="0,0,10,0" />
+                            <TextBlock Text="{Binding WorkText}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

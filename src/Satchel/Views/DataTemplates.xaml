@@ -1,0 +1,113 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:Satchel.ViewModels"
+                    xmlns:v="clr-namespace:Satchel.Views"
+                    xmlns:vp="clr-namespace:Satchel.Views.Pages">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Dialogs/CommonDialogs.xaml" />
+        <ResourceDictionary Source="Dialogs/EventEditor.xaml" />
+        <ResourceDictionary Source="Dialogs/VaultDialogs.xaml" />
+        <ResourceDictionary Source="Dialogs/OtherDialogs.xaml" />
+        <ResourceDictionary Source="Dialogs/MoreDialogs.xaml" />
+        <ResourceDictionary Source="Dialogs/BoardDialogs.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <DataTemplate DataType="{x:Type vm:LockViewModel}">
+        <v:LockView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ShellViewModel}">
+        <v:ShellView />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+        <vp:DashboardView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:NotesViewModel}">
+        <vp:NotesView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:NoteEditorViewModel}">
+        <vp:NoteEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TasksViewModel}">
+        <vp:TasksView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TaskDetailViewModel}">
+        <vp:TaskDetailView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:CalendarViewModel}">
+        <vp:CalendarView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:VaultViewModel}">
+        <vp:VaultView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:BoardViewModel}">
+        <vp:BoardView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ContactsViewModel}">
+        <vp:ContactsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:LibraryViewModel}">
+        <vp:LibraryView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ProjectsViewModel}">
+        <vp:ProjectsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ReadingViewModel}">
+        <vp:ReadingView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:GamesViewModel}">
+        <vp:GamesView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SketchViewModel}">
+        <vp:SketchView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:VideosViewModel}">
+        <vp:VideosView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:MusicViewModel}">
+        <vp:MusicView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ClockViewModel}">
+        <vp:ClockView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TodayViewModel}">
+        <vp:TodayView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:BookmarksViewModel}">
+        <vp:BookmarksView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:MoneyViewModel}">
+        <vp:MoneyView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:GambleViewModel}">
+        <vp:GambleView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SheetsViewModel}">
+        <vp:SheetsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:WatchingViewModel}">
+        <vp:WatchingView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:FlashcardsViewModel}">
+        <vp:FlashcardsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:CollectionsViewModel}">
+        <vp:CollectionsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:PhotosViewModel}">
+        <vp:PhotosView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:FeedsViewModel}">
+        <vp:FeedsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:InsightsViewModel}">
+        <vp:InsightsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+        <vp:SettingsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:CommandPaletteViewModel}">
+        <v:CommandPaletteView />
+    </DataTemplate>
+</ResourceDictionary>

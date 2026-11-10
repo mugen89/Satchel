@@ -1,0 +1,568 @@
+<UserControl x:Class="Satchel.Views.Pages.ProjectsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:m="clr-namespace:Satchel.Models"
+             xmlns:vm="clr-namespace:Satchel.ViewModels">
+    <UserControl.Resources>
+        <Style x:Key="OverlayLight" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#E6FFFFFF" />
+            <Setter Property="Foreground" Value="#1F2328" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
+
+        <Style x:Key="StatusChip" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Background" Value="{DynamicResource SegmentBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="Active">
+                    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Done">
+                    <Setter Property="Background" Value="{DynamicResource SuccessSubtleBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="OnHold">
+                    <Setter Property="Background" Value="{DynamicResource WarningSubtleBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Task card used in the three kanban columns -->
+        <DataTemplate x:Key="TaskCard" DataType="{x:Type m:TaskItem}">
+            <Border Style="{StaticResource Card}" Padding="10,8" Margin="0,0,0,8" b:Motion.Lift="True">
+                <DockPanel>
+                    <CheckBox DockPanel.Dock="Left" Style="{StaticResource RoundCheck}" VerticalAlignment="Top" Margin="0,1,10,0"
+                              IsChecked="{Binding State, Converter={StaticResource Equals}, ConverterParameter=Done, Mode=OneWay}"
+                              Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.OpenExternal}" FontSize="10" VerticalAlignment="Top"
+                            Command="{Binding DataContext.OpenTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" ToolTip="Open in Tasks" />
+                    <StackPanel>
+                        <TextBlock x:Name="title" Text="{Binding Title}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding DueDate, Converter={StaticResource DateFormat}, ConverterParameter=friendly}" Style="{StaticResource Caption}" Margin="0,3,0,0"
+                                   Visibility="{Binding DueDate, Converter={StaticResource HasValueToVis}}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="Done">
+                    <Setter TargetName="title" Property="TextDecorations" Value="Strikethrough" />
+                    <Setter TargetName="title" Property="Foreground" Value="{DynamicResource TextFaintBrush}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <Style x:Key="Column" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SegmentBrush}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Radius}" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- ===================== Overview ===================== -->
+        <DockPanel Margin="28,0,28,0" Visibility="{Binding IsDetail, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+            <DockPanel DockPanel.Dock="Top" Margin="0,4,0,16">
+                <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="New project" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewProjectCommand}"
+                        ToolTip="New project (Ctrl+N)" VerticalAlignment="Center" />
+                <Border DockPanel.Dock="Right" Style="{StaticResource SegmentHost}" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" Content="Active" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Active}" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Ideas" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Ideas}" />
+                        <RadioButton Style="{StaticResource Segment}" Content="Done" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=Done}" />
+                        <RadioButton Style="{StaticResource Segment}" Content="All" IsChecked="{Binding Filter, Converter={StaticResource Equals}, ConverterParameter=All}" />
+                    </StackPanel>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Projects" Style="{StaticResource PageTitle}" />
+                    <TextBlock Style="{StaticResource Caption}"><Run Text="{Binding ActiveCount, Mode=OneWay}" /><Run Text=" in progress" /></TextBlock>
+                </StackPanel>
+            </DockPanel>
+
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,24">
+                    <ItemsControl ItemsSource="{Binding Visible}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type m:Project}">
+                                <Button Style="{StaticResource CardButton}" Width="300" Height="238" Margin="0,0,16,16" Padding="0" b:Motion.Enter="True"
+                                        Command="{Binding DataContext.OpenProjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                    <DockPanel>
+                                        <Grid DockPanel.Dock="Top" Height="72">
+                                            <Border CornerRadius="10,10,0,0" Background="{Binding Color, Converter={StaticResource PaletteBrush}}" Opacity="0.9" />
+                                            <Border CornerRadius="10,10,0,0" ClipToBounds="True" Visibility="{Binding Cover, Converter={StaticResource HasValueToVis}}">
+                                                <Image Source="{Binding Cover, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" />
+                                            </Border>
+                                            <Border Width="38" Height="38" CornerRadius="19" Background="#E6FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16,0,0,-14">
+                                                <TextBlock Text="{Binding Icon}" FontFamily="{StaticResource IconFont}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Foreground="{Binding Color, Converter={StaticResource PaletteBrush}}" />
+                                            </Border>
+                                            <TextBlock Text="{x:Static core:Glyphs.Pin}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="White" HorizontalAlignment="Right"
+                                                       VerticalAlignment="Top" Margin="0,10,12,0" Visibility="{Binding IsPinned, Converter={StaticResource BoolToVis}}" />
+                                        </Grid>
+                                        <StackPanel DockPanel.Dock="Bottom" Margin="16,0,16,14">
+                                            <Grid Height="5" Margin="0,0,0,8">
+                                                <Border Background="{DynamicResource SegmentBrush}" CornerRadius="2.5" />
+                                                <Border Background="{Binding Color, Converter={StaticResource PaletteBrush}}" CornerRadius="2.5" HorizontalAlignment="Left">
+                                                    <Border.Width>
+                                                        <MultiBinding Converter="{StaticResource ProgressWidth}">
+                                                            <Binding Path="Progress" />
+                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
+                                                        </MultiBinding>
+                                                    </Border.Width>
+                                                </Border>
+                                            </Grid>
+                                            <DockPanel>
+                                                <Border DockPanel.Dock="Left" Style="{StaticResource StatusChip}">
+                                                    <TextBlock Text="{Binding Status, Converter={StaticResource Humanize}}" FontSize="11" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center">
+                                                    <Run Text="{Binding TaskDone, Mode=OneWay}" /><Run Text="/" /><Run Text="{Binding TaskTotal, Mode=OneWay}" /><Run Text=" tasks" />
+                                                </TextBlock>
+                                                <TextBlock x:Name="due" Text="{Binding DueText}" Style="{StaticResource Caption}" Margin="8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                        </StackPanel>
+                                        <StackPanel Margin="16,22,16,8">
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" Visibility="{Binding NextMilestone, Converter={StaticResource HasValueToVis}}">
+                                                <Run Text="{x:Static core:Glyphs.Flag}" FontFamily="{StaticResource IconFont}" /><Run Text="  Next: " /><Run Text="{Binding NextMilestone, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                        <Setter TargetName="due" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" b:Motion.Enter="True">
+                    <Border Style="{StaticResource EmptyIcon}">
+                        <TextBlock Text="{x:Static core:Glyphs.Lightbulb}" Style="{StaticResource Icon}" FontSize="28" Foreground="{DynamicResource AccentTextBrush}" />
+                    </Border>
+                    <TextBlock Text="Turn ideas into projects" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,16,0,4" />
+                    <TextBlock Text="Each project gets milestones, a task board, notes, a corkboard and a log." Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                    <Button Style="{StaticResource AccentButton}" Content="Start a project" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewProjectCommand}"
+                            HorizontalAlignment="Center" Margin="0,18,0,0" />
+                </StackPanel>
+            </Grid>
+        </DockPanel>
+
+        <!-- ===================== Detail ===================== -->
+        <DockPanel DataContext="{Binding}" Visibility="{Binding IsDetail, Converter={StaticResource BoolToVis}}">
+            <!-- banner -->
+            <Grid DockPanel.Dock="Top" Height="132" Margin="28,0,28,0">
+                <Border CornerRadius="{DynamicResource RadiusLarge}" Background="{Binding Selected.Color, Converter={StaticResource PaletteBrush}}" />
+                <Border CornerRadius="{DynamicResource RadiusLarge}" ClipToBounds="True" Visibility="{Binding Selected.Cover, Converter={StaticResource HasValueToVis}}">
+                    <Image Source="{Binding Selected.Cover, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" />
+                </Border>
+                <Border CornerRadius="{DynamicResource RadiusLarge}">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#00000000" Offset="0.2" />
+                            <GradientStop Color="#73000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <Button Style="{StaticResource OverlayLight}" Content="Projects" b:Ui.Icon="{x:Static core:Glyphs.Back}" Command="{Binding BackCommand}" HorizontalAlignment="Left"
+                        VerticalAlignment="Top" Margin="14,12,0,0" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,12,14,0">
+                    <Button Style="{StaticResource OverlayLight}" Content="Open board" b:Ui.Icon="{x:Static core:Glyphs.Tiles}" Command="{Binding OpenBoardCommand}" Margin="0,0,6,0" />
+                    <Button Style="{StaticResource OverlayLight}" Content="{x:Static core:Glyphs.More}" FontFamily="{StaticResource IconFont}" b:Ui.MenuOnClick="True" Padding="10,0">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Pin to top" Icon="{x:Static core:Glyphs.Pin}" Command="{Binding TogglePinCommand}" />
+                                <MenuItem Header="Cover image…" Icon="{x:Static core:Glyphs.Picture}" Command="{Binding PickCoverCommand}" />
+                                <MenuItem Header="Paste cover image" Icon="{x:Static core:Glyphs.Copy}" Command="{Binding PasteCoverCommand}" />
+                                <MenuItem Header="Remove cover" Icon="{x:Static core:Glyphs.Close}" Command="{Binding RemoveCoverCommand}" />
+                                <MenuItem Header="{Binding Selected.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark project private'}" Icon="{x:Static core:Glyphs.Hide}"
+                                          Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Selected}" />
+                                <Separator />
+                                <MenuItem Header="Delete project" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}" Command="{Binding DeleteProjectCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+                <DockPanel VerticalAlignment="Bottom" Margin="22,0,22,16">
+                    <Border DockPanel.Dock="Left" Width="46" Height="46" CornerRadius="23" Background="#F2FFFFFF" Margin="0,0,14,0">
+                        <TextBlock Text="{Binding Selected.Icon}" FontFamily="{StaticResource IconFont}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{Binding Selected.Color, Converter={StaticResource PaletteBrush}}" />
+                    </Border>
+                    <TextBox Text="{Binding Selected.Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" FontSize="26" FontWeight="SemiBold"
+                             FontFamily="{StaticResource DisplayFont}" Foreground="White" CaretBrush="White" VerticalContentAlignment="Center" />
+                </DockPanel>
+            </Grid>
+
+            <!-- tabs -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource SegmentHost}" HorizontalAlignment="Left" Margin="28,14,28,14">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Style="{StaticResource Segment}" Content="Overview" b:Ui.Icon="{x:Static core:Glyphs.Home}" IsChecked="{Binding Tab, Converter={StaticResource Equals}, ConverterParameter=Overview}" />
+                    <RadioButton Style="{StaticResource Segment}" b:Ui.Icon="{x:Static core:Glyphs.Tasks}" IsChecked="{Binding Tab, Converter={StaticResource Equals}, ConverterParameter=Tasks}">
+                        <TextBlock><Run Text="Tasks " /><Run Text="{Binding Selected.TaskTotal, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Segment}" b:Ui.Icon="{x:Static core:Glyphs.Notes}" IsChecked="{Binding Tab, Converter={StaticResource Equals}, ConverterParameter=Notes}">
+                        <TextBlock><Run Text="Notes " /><Run Text="{Binding Selected.NoteCount, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource Segment}" Content="Log" b:Ui.Icon="{x:Static core:Glyphs.History}" IsChecked="{Binding Tab, Converter={StaticResource Equals}, ConverterParameter=Log}" />
+                </StackPanel>
+            </Border>
+
+            <Grid Margin="28,0,28,0">
+                <!-- ===== Overview tab ===== -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,24"
+                              Visibility="{Binding Tab, Converter={StaticResource EqualsToVis}, ConverterParameter=Overview}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="320" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Border Style="{StaticResource Card}" Padding="18,14">
+                                <StackPanel>
+                                    <TextBlock Text="Goal" Style="{StaticResource Overline}" />
+                                    <TextBox Text="{Binding Selected.Description, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" AcceptsReturn="True" TextWrapping="Wrap"
+                                             MinHeight="70" FontSize="14.5" Margin="0,6,0,0" VerticalContentAlignment="Top"
+                                             b:Ui.Placeholder="What is this project about? What does “done” look like?" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="18,14" Margin="0,16,0,0">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}">
+                                            <Run Text="{Binding Selected.MilestoneDone, Mode=OneWay}" /><Run Text=" of " /><Run Text="{Binding Selected.MilestoneTotal, Mode=OneWay}" /><Run Text=" reached" />
+                                        </TextBlock>
+                                        <TextBlock Text="Milestones" Style="{StaticResource Overline}" />
+                                    </DockPanel>
+                                    <ItemsControl ItemsSource="{Binding Milestones}" Margin="0,8,0,0" Focusable="False" b:DnD.IsReorderable="True" b:DnD.Group="milestones" b:DnD.Mode="Vertical"
+                                                  b:DnD.ReorderCommand="{Binding ReorderMilestonesCommand}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <c:AnimatedStackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type m:Milestone}">
+                                                <Grid x:Name="row" Margin="0,2" Background="Transparent">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Static core:Glyphs.Gripper}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource TextFaintBrush}"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0" b:DnD.IsHandle="True" Cursor="SizeAll" />
+                                                    <CheckBox Grid.Column="1" Style="{StaticResource RoundCheck}" IsChecked="{Binding IsDone}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                                    <TextBox x:Name="title" Grid.Column="2" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" VerticalContentAlignment="Center" />
+                                                    <c:DateBox Grid.Column="3" SelectedDate="{Binding DueDate}" Placeholder="Due" Width="176" MinHeight="30" AllowClear="True" KeepTime="False" Margin="8,0,4,0" />
+                                                    <Button x:Name="del" Grid.Column="4" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Delete}" Opacity="0" ToolTip="Remove"
+                                                            Command="{Binding DataContext.DeleteMilestoneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                </Grid>
+                                                <DataTemplate.Triggers>
+                                                    <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="del" Property="Opacity" Value="1" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                                        <Setter TargetName="title" Property="Foreground" Value="{DynamicResource TextFaintBrush}" />
+                                                        <Setter TargetName="title" Property="TextDecorations" Value="Strikethrough" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                                        <Setter TargetName="title" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBox Style="{StaticResource SearchBox}" b:Ui.Icon="{x:Static core:Glyphs.Flag}" Text="{Binding NewMilestone, UpdateSourceTrigger=PropertyChanged}"
+                                             b:Ui.Placeholder="Add a milestone and press Enter" b:Ui.EnterCommand="{Binding AddMilestoneCommand}" Margin="0,10,0,0" MinHeight="34" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="18,14" Margin="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Resources" Style="{StaticResource Overline}" />
+                                    <ItemsControl ItemsSource="{Binding Resources}" Margin="0,8,0,0" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type m:ProjectResource}">
+                                                <Grid x:Name="row" Background="Transparent" Margin="0,1">
+                                                    <Button Style="{StaticResource RowButton}" Padding="8,7" Command="{Binding DataContext.OpenResourceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}">
+                                                        <DockPanel>
+                                                            <TextBlock x:Name="icon" Text="{x:Static core:Glyphs.Link}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource AccentTextBrush}"
+                                                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                                                            <TextBlock Text="{Binding Url}" DockPanel.Dock="Right" Style="{StaticResource Caption}" MaxWidth="220" TextTrimming="CharacterEllipsis" Margin="10,0,30,0"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                        </DockPanel>
+                                                    </Button>
+                                                    <Button x:Name="del" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Delete}" HorizontalAlignment="Right" Opacity="0"
+                                                            Command="{Binding DataContext.DeleteResourceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                </Grid>
+                                                <DataTemplate.Triggers>
+                                                    <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="del" Property="Opacity" Value="1" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding Url}" Value="">
+                                                        <Setter TargetName="icon" Property="Text" Value="{x:Static core:Glyphs.Document}" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBox Style="{StaticResource SearchBox}" b:Ui.Icon="{x:Static core:Glyphs.Link}" Text="{Binding NewResource, UpdateSourceTrigger=PropertyChanged}"
+                                             b:Ui.Placeholder="Paste a link or type a reference, then Enter" b:Ui.EnterCommand="{Binding AddResourceCommand}" Margin="0,10,0,0" MinHeight="34" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <Border Style="{StaticResource Card}" Padding="18,16">
+                                <DockPanel>
+                                    <c:ProgressRing DockPanel.Dock="Left" Progress="{Binding Selected.Progress}" Thickness="7" Width="72" Height="72"
+                                                    RingBrush="{Binding Selected.Color, Converter={StaticResource PaletteBrush}}" />
+                                    <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Selected.Progress, Converter={StaticResource Percent}}" FontSize="24" FontWeight="SemiBold" />
+                                        <TextBlock Style="{StaticResource Caption}"><Run Text="{Binding Selected.TaskDone, Mode=OneWay}" /><Run Text=" of " /><Run Text="{Binding Selected.TaskTotal, Mode=OneWay}" /><Run Text=" tasks done" /></TextBlock>
+                                        <TextBlock Text="{Binding Selected.DueText}" Style="{StaticResource Caption}" Visibility="{Binding Selected.DueDate, Converter={StaticResource HasValueToVis}}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="18,14" Margin="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Status" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                                    <ItemsControl ItemsSource="{x:Static vm:ProjectsViewModel.Statuses}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <RadioButton Style="{StaticResource ChipRadio}" Content="{Binding Label}" b:Ui.Icon="{Binding Glyph}" GroupName="pstatus" Margin="0,0,6,6"
+                                                             Command="{Binding DataContext.SetStatusCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Value}">
+                                                    <RadioButton.IsChecked>
+                                                        <MultiBinding Converter="{StaticResource AllEqual}" Mode="OneWay">
+                                                            <Binding Path="Value" />
+                                                            <Binding Path="DataContext.Selected.Status" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                        </MultiBinding>
+                                                    </RadioButton.IsChecked>
+                                                </RadioButton>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="Start" Style="{StaticResource FieldLabel}" />
+                                    <c:DateBox SelectedDate="{Binding Selected.StartDate}" Placeholder="No start date" AllowClear="True" KeepTime="False" />
+                                    <TextBlock Text="Due" Style="{StaticResource FieldLabel}" />
+                                    <c:DateBox SelectedDate="{Binding Selected.DueDate}" Placeholder="No deadline" AllowClear="True" KeepTime="False" />
+                                    <TextBlock Text="Colour" Style="{StaticResource FieldLabel}" />
+                                    <c:ColorSwatches SelectedKey="{Binding Selected.Color}" SwatchSize="22" />
+                                    <TextBlock Text="Icon" Style="{StaticResource FieldLabel}" />
+                                    <ItemsControl ItemsSource="{x:Static vm:ProjectsViewModel.Icons}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource IconButtonSmall}" Content="{Binding}" Width="32" Height="32" Margin="0,0,2,2" FontSize="14"
+                                                        Command="{Binding DataContext.SetIconCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+
+                <!-- ===== Tasks tab ===== -->
+                <DockPanel Visibility="{Binding Tab, Converter={StaticResource EqualsToVis}, ConverterParameter=Tasks}" Margin="0,0,0,20">
+                    <TextBox DockPanel.Dock="Top" Style="{StaticResource SearchBox}" b:Ui.Icon="{x:Static core:Glyphs.Add}" Text="{Binding NewTask, UpdateSourceTrigger=PropertyChanged}"
+                             b:Ui.Placeholder="Add a task — e.g. “Order tiles friday !high”" b:Ui.EnterCommand="{Binding AddTaskCommand}" Margin="0,0,0,14" MinHeight="38" MaxWidth="640"
+                             HorizontalAlignment="Left" Width="560" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource Column}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="To do  " /><Run Text="{Binding TodoTasks.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding TodoTasks}" ItemTemplate="{StaticResource TaskCard}" MinHeight="120" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="ptasks" b:DnD.Mode="Vertical" b:DnD.ListTag="Todo" b:DnD.ReorderCommand="{Binding ReorderTasksCommand}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <c:AnimatedStackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource Column}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="In progress  " /><Run Text="{Binding DoingTasks.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding DoingTasks}" ItemTemplate="{StaticResource TaskCard}" MinHeight="120" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="ptasks" b:DnD.Mode="Vertical" b:DnD.ListTag="InProgress" b:DnD.ReorderCommand="{Binding ReorderTasksCommand}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <c:AnimatedStackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource Column}" Margin="0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="4,0,0,10" FontWeight="SemiBold"><Run Text="Done  " /><Run Text="{Binding DoneTasks.Count, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" /></TextBlock>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding DoneTasks}" ItemTemplate="{StaticResource TaskCard}" MinHeight="120" Focusable="False" Background="Transparent"
+                                                  b:DnD.IsReorderable="True" b:DnD.Group="ptasks" b:DnD.Mode="Vertical" b:DnD.ListTag="Done" b:DnD.ReorderCommand="{Binding ReorderTasksCommand}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <c:AnimatedStackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </DockPanel>
+
+                <!-- ===== Notes tab ===== -->
+                <DockPanel Visibility="{Binding Tab, Converter={StaticResource EqualsToVis}, ConverterParameter=Notes}">
+                    <Button DockPanel.Dock="Top" Style="{StaticResource AccentButton}" Content="New note" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding NewNoteCommand}"
+                            HorizontalAlignment="Left" Margin="0,0,0,14" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,20">
+                        <ItemsControl ItemsSource="{Binding Notes}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:Note}">
+                                    <Button Style="{StaticResource CardButton}" Width="250" Height="150" Margin="0,0,14,14" Padding="16,14" VerticalContentAlignment="Top"
+                                            Command="{Binding DataContext.OpenNoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Preview}" Style="{StaticResource Caption}" TextWrapping="Wrap" MaxHeight="72" TextTrimming="CharacterEllipsis" Margin="0,6,0,0" />
+                                            <TextBlock Text="{Binding UpdatedAt, Converter={StaticResource DateFormat}, ConverterParameter=relative}" Style="{StaticResource Caption}" Margin="0,8,0,0"
+                                                       Foreground="{DynamicResource TextFaintBrush}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+
+                <!-- ===== Log tab ===== -->
+                <DockPanel Visibility="{Binding Tab, Converter={StaticResource EqualsToVis}, ConverterParameter=Log}" MaxWidth="760" HorizontalAlignment="Left">
+                    <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Padding="14,12" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBox Text="{Binding NewUpdate, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineTextBox}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48"
+                                     VerticalContentAlignment="Top" b:Ui.Placeholder="What happened? Progress, a win, a blocker, a decision…" />
+                            <DockPanel Margin="0,8,0,0">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="Add to log" Command="{Binding AddUpdateCommand}" />
+                                <ItemsControl ItemsSource="{x:Static vm:ProjectsViewModel.UpdateKinds}" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <RadioButton Style="{StaticResource ChipRadio}" Content="{Binding Label}" b:Ui.Icon="{Binding Glyph}" GroupName="ukind" Margin="0,0,6,0"
+                                                         Command="{Binding DataContext.SetUpdateKindCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Value}">
+                                                <RadioButton.IsChecked>
+                                                    <MultiBinding Converter="{StaticResource AllEqual}" Mode="OneWay">
+                                                        <Binding Path="Value" />
+                                                        <Binding Path="DataContext.NewUpdateKind" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                    </MultiBinding>
+                                                </RadioButton.IsChecked>
+                                            </RadioButton>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,20">
+                        <ItemsControl ItemsSource="{Binding Updates}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <c:AnimatedStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:ProjectUpdate}">
+                                    <Grid x:Name="row" Margin="0,0,0,4" Background="Transparent">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="2" Background="{DynamicResource StrokeBrush}" HorizontalAlignment="Center" />
+                                        <Border x:Name="dot" Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentSubtleBrush}" VerticalAlignment="Top" Margin="0,4,0,0">
+                                            <TextBlock x:Name="icon" Text="{x:Static core:Glyphs.Edit}" FontFamily="{StaticResource IconFont}" FontSize="12" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource AccentTextBrush}" />
+                                        </Border>
+                                        <Border Grid.Column="1" Style="{StaticResource Card}" Padding="14,10" Margin="8,0,0,8">
+                                            <DockPanel>
+                                                <Button x:Name="del" DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Delete}" Opacity="0" VerticalAlignment="Top"
+                                                        Command="{Binding DataContext.DeleteUpdateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Date, Converter={StaticResource DateFormat}, ConverterParameter=relative}" Style="{StaticResource Caption}" />
+                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <Trigger SourceName="row" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="del" Property="Opacity" Value="1" />
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Win">
+                                            <Setter TargetName="icon" Property="Text" Value="{x:Static core:Glyphs.StarFilled}" />
+                                            <Setter TargetName="dot" Property="Background" Value="{DynamicResource SuccessSubtleBrush}" />
+                                            <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Blocker">
+                                            <Setter TargetName="icon" Property="Text" Value="{x:Static core:Glyphs.Warning}" />
+                                            <Setter TargetName="dot" Property="Background" Value="{DynamicResource DangerSubtleBrush}" />
+                                            <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Decision">
+                                            <Setter TargetName="icon" Property="Text" Value="{x:Static core:Glyphs.Flag}" />
+                                            <Setter TargetName="dot" Property="Background" Value="{DynamicResource InfoSubtleBrush}" />
+                                            <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource InfoBrush}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
+        </DockPanel>
+    </Grid>
+</UserControl>

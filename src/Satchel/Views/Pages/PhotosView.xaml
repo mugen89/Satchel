@@ -1,0 +1,261 @@
+<UserControl x:Class="Satchel.Views.Pages.PhotosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:m="clr-namespace:Satchel.Models"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:vm="clr-namespace:Satchel.ViewModels"
+             Focusable="True" FocusVisualStyle="{x:Null}" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop" PreviewKeyDown="OnKeyDown">
+    <UserControl.Resources>
+        <Style x:Key="ViewerButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#33FFFFFF" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== Side panel ===== -->
+        <Border Style="{StaticResource SidePanel}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Photos" Style="{StaticResource PageTitle}" Margin="6,4,0,12" />
+                <TextBlock DockPanel.Dock="Bottom" Text="Stored encrypted in Satchel, up to 2048 px. Your original files are never changed." Style="{StaticResource Caption}"
+                           TextWrapping="Wrap" TextTrimming="None" Margin="6,10,0,0" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-8,0" Padding="0,0,8,0">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding MainFilters}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SideFilter}">
+                                    <RadioButton Style="{StaticResource SideItem}" Content="{Binding Title}" b:Ui.Icon="{Binding Glyph}" b:Ui.Badge="{Binding Badge}" GroupName="pf"
+                                                 IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                 Command="{Binding DataContext.SelectFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <DockPanel Margin="0,8,0,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Add}" Command="{Binding NewAlbumCommand}" ToolTip="New album"
+                                    FontSize="11" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                            <TextBlock Text="Albums" Style="{StaticResource SectionLabel}" />
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding AlbumFilters}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SideFilter}">
+                                    <RadioButton Style="{StaticResource SideItem}" Content="{Binding Title}" b:Ui.Icon="{Binding Glyph}" b:Ui.Badge="{Binding Badge}" GroupName="pf"
+                                                 b:Ui.IconBrush="{Binding IconBrush}" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                 Command="{Binding DataContext.SelectFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <RadioButton.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Rename album…" Icon="{x:Static core:Glyphs.Edit}"
+                                                          Command="{Binding PlacementTarget.DataContext.RenameAlbumCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                                <MenuItem Header="Private on / off" Icon="{x:Static core:Glyphs.Hide}"
+                                                          Command="{Binding PlacementTarget.DataContext.TogglePrivateAlbumCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="Delete album" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}"
+                                                          Command="{Binding PlacementTarget.DataContext.DeleteAlbumCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}" />
+                                            </ContextMenu>
+                                        </RadioButton.ContextMenu>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Grid ===== -->
+        <DockPanel Grid.Column="1" Margin="24,0,20,0">
+            <DockPanel DockPanel.Dock="Top" Margin="0,4,0,12">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox Style="{StaticResource SearchBox}" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=200}" b:Ui.Placeholder="Search captions, names, tags"
+                             b:Ui.EscapeCommand="{Binding ClearSearchCommand}" Width="220" MinHeight="34" Margin="0,0,10,0" />
+                    <Border Style="{StaticResource SegmentHost}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource Segment}" Content="S" IsChecked="{Binding ThumbSizeKey, Converter={StaticResource Equals}, ConverterParameter=S, Mode=OneWay}" Command="{Binding SetThumbSizeCommand}" CommandParameter="S" Padding="10,0" ToolTip="Small" />
+                            <RadioButton Style="{StaticResource Segment}" Content="M" IsChecked="{Binding ThumbSizeKey, Converter={StaticResource Equals}, ConverterParameter=M, Mode=OneWay}" Command="{Binding SetThumbSizeCommand}" CommandParameter="M" Padding="10,0" ToolTip="Medium" />
+                            <RadioButton Style="{StaticResource Segment}" Content="L" IsChecked="{Binding ThumbSizeKey, Converter={StaticResource Equals}, ConverterParameter=L, Mode=OneWay}" Command="{Binding SetThumbSizeCommand}" CommandParameter="L" Padding="10,0" ToolTip="Large" />
+                        </StackPanel>
+                    </Border>
+                    <ToggleButton Style="{StaticResource Chip}" Content="Select" b:Ui.Icon="{x:Static core:Glyphs.CheckboxChecked}" IsChecked="{Binding SelectMode}" Margin="0,0,10,0" MinHeight="34" />
+                    <Button Style="{StaticResource AccentButton}" Content="Add" b:Ui.Icon="{x:Static core:Glyphs.Add}" b:Ui.MenuOnClick="True" ToolTip="Add photos — or drop them here, or paste (Ctrl+V)">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Photos…" Icon="{x:Static core:Glyphs.Picture}" Command="{Binding ImportFilesCommand}" InputGestureText="Ctrl+N" />
+                                <MenuItem Header="A whole folder…" Icon="{x:Static core:Glyphs.FolderOpen}" Command="{Binding ImportFolderCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SelectedFilter.Title}" Style="{StaticResource Title}" FontSize="22" />
+                    <TextBlock Text="{Binding SelectedFilter.Count, StringFormat={}{0} photos}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- selection bar -->
+            <Border DockPanel.Dock="Top" Margin="0,0,0,10" Padding="12,6" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource AccentSubtleBrush}"
+                    Visibility="{Binding SelectMode, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource GhostButton}" Content="Move to album" b:Ui.Icon="{x:Static core:Glyphs.Folder}" Command="{Binding MoveToAlbumCommand}" />
+                        <Button Style="{StaticResource DangerGhostButton}" Content="Delete" b:Ui.Icon="{x:Static core:Glyphs.Delete}" Command="{Binding DeletePhotosCommand}" />
+                        <Button Style="{StaticResource GhostButton}" Content="Done" Command="{Binding ToggleSelectModeCommand}" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" FontWeight="SemiBold"><Run Text="{Binding CheckedCount, Mode=OneWay}" /><Run Text=" selected — click photos to pick them" FontWeight="Normal" /></TextBlock>
+                </DockPanel>
+            </Border>
+
+            <!-- importing -->
+            <Border DockPanel.Dock="Bottom" Margin="0,8,0,10" Padding="12,8" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1" Visibility="{Binding IsImporting, Converter={StaticResource BoolToVis}}">
+                <StackPanel Orientation="Horizontal">
+                    <c:Spinner Width="18" Height="18" Margin="0,0,10,0" />
+                    <TextBlock Text="{Binding ImportText}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <Grid>
+                <ScrollViewer x:Name="GridScroll" VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,16">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:PhotoGroup}">
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}" Margin="2,4,0,8" />
+                                        <ItemsControl ItemsSource="{Binding Photos}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type m:Photo}">
+                                                    <Button Style="{StaticResource RowButton}" Padding="0" Margin="0,0,6,6" ToolTip="{Binding DisplayName}"
+                                                            Width="{Binding DataContext.ThumbSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            Height="{Binding DataContext.ThumbSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                                        <Grid>
+                                                            <Border CornerRadius="6" ClipToBounds="True" Background="{DynamicResource SegmentBrush}">
+                                                                <Image Source="{Binding Thumb, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                            </Border>
+                                                            <Border x:Name="check" CornerRadius="6" BorderThickness="3" BorderBrush="{DynamicResource AccentBrush}" Visibility="Collapsed">
+                                                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource AccentBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6">
+                                                                    <TextBlock Text="{x:Static core:Glyphs.Check}" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{DynamicResource OnAccentBrush}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+                                                            </Border>
+                                                            <TextBlock Text="{x:Static core:Glyphs.HeartFilled}" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="White" Margin="7"
+                                                                       HorizontalAlignment="Left" VerticalAlignment="Bottom" Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock.Effect>
+                                                                    <DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.7" />
+                                                                </TextBlock.Effect>
+                                                            </TextBlock>
+                                                        </Grid>
+                                                    </Button>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding IsChecked}" Value="True">
+                                                            <Setter TargetName="check" Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="{Binding MoreText}" Command="{Binding ShowMoreCommand}" HorizontalAlignment="Center" Margin="0,6,0,10" Visibility="{Binding HasMore, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" b:Motion.Enter="True">
+                    <Border Style="{StaticResource EmptyIcon}">
+                        <TextBlock Text="{x:Static core:Glyphs.Photo}" Style="{StaticResource Icon}" FontSize="28" Foreground="{DynamicResource AccentTextBrush}" />
+                    </Border>
+                    <TextBlock Text="Your photos and screenshots" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,16,0,4" />
+                    <TextBlock Text="Add pictures, drop a few here, or paste a screenshot with Ctrl+V." Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                    <Button Style="{StaticResource AccentButton}" Content="Add photos" b:Ui.Icon="{x:Static core:Glyphs.Add}" Command="{Binding ImportFilesCommand}" HorizontalAlignment="Center" Margin="0,18,0,0" />
+                </StackPanel>
+            </Grid>
+        </DockPanel>
+
+        <!-- ===== Viewer ===== -->
+        <Grid x:Name="Viewer" Grid.ColumnSpan="2" Background="#F2101114" Visibility="{Binding IsViewing, Converter={StaticResource BoolToVis}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid x:Name="Stage" ClipToBounds="True" Background="Transparent" MouseWheel="OnStageWheel" MouseLeftButtonDown="OnStageDown" MouseMove="OnStageMove"
+                  MouseLeftButtonUp="OnStageUp">
+                <Image x:Name="BigImage" Source="{Binding ViewImage}" Stretch="Uniform" Margin="60,64,60,40" RenderOptions.BitmapScalingMode="HighQuality" RenderTransformOrigin="0.5,0.5">
+                    <Image.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="ZoomScale" />
+                            <TranslateTransform x:Name="ZoomPan" />
+                        </TransformGroup>
+                    </Image.RenderTransform>
+                </Image>
+                <Button Style="{StaticResource ViewerButton}" Content="{x:Static core:Glyphs.ChevronLeft}" Command="{Binding PreviousCommand}" HorizontalAlignment="Left" Margin="12,0,0,0" ToolTip="Previous (←)" />
+                <Button Style="{StaticResource ViewerButton}" Content="{x:Static core:Glyphs.ChevronRight}" Command="{Binding NextCommand}" HorizontalAlignment="Right" Margin="0,0,12,0" ToolTip="Next (→)" />
+                <DockPanel VerticalAlignment="Top" Margin="16,12,16,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource ViewerButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip="Favorite (F)"
+                                Content="{Binding Viewing.IsFavorite, Converter={StaticResource BoolToString}, ConverterParameter=&#xEB52;|&#xEB51;}" />
+                        <Button Style="{StaticResource ViewerButton}" Command="{Binding ToggleSlideshowCommand}" ToolTip="Slideshow (Space)"
+                                Content="{Binding IsSlideshow, Converter={StaticResource BoolToString}, ConverterParameter=&#xE769;|&#xE768;}" />
+                        <Button Style="{StaticResource ViewerButton}" Content="{x:Static core:Glyphs.Info}" Command="{Binding ToggleInfoCommand}" ToolTip="Details (I)" />
+                        <Button Style="{StaticResource ViewerButton}" Content="{x:Static core:Glyphs.Close}" Command="{Binding CloseViewerCommand}" ToolTip="Close (Esc)" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ViewPosition}" Foreground="#B3FFFFFF" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+            </Grid>
+            <!-- details -->
+            <Border Grid.Column="1" Width="300" Background="{DynamicResource SurfaceBrush}" Visibility="{Binding ShowInfo, Converter={StaticResource BoolToVis}}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,18,20,20">
+                        <TextBlock Text="Caption" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <TextBox Text="{Binding Viewing.Caption, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MultilineTextBox}" MinHeight="60" b:Ui.Placeholder="Say something about it…"
+                                 LostKeyboardFocus="OnCaptionBlur" />
+                        <TextBlock Text="Taken" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{Binding Viewing.TakenAt, Converter={StaticResource DateFormat}, ConverterParameter=datetime}" />
+                        <TextBlock Text="Picture" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{Binding Viewing.SizeText}" />
+                        <TextBlock Text="{Binding Viewing.FileName}" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                        <TextBlock Text="Album" Style="{StaticResource FieldLabel}" />
+                        <Button Content="{Binding ViewAlbum, TargetNullValue='Not in an album'}" b:Ui.Icon="{x:Static core:Glyphs.Folder}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Command="{Binding MoveToAlbumCommand}" />
+                        <Border Style="{StaticResource Divider}" Margin="0,16,0,10" />
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{Binding SendToBoardCommand}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Tiles}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" /><TextBlock Text="Pin to a board" /></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{Binding SetAsCoverCommand}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Picture}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" /><TextBlock Text="Use as album cover" /></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{Binding CopyImageCommand}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Copy}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" /><TextBlock Text="Copy" /></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{Binding SaveAsCommand}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Save}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" /><TextBlock Text="Save a copy…" /></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Viewing}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Hide}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" />
+                                <TextBlock Text="{Binding Viewing.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}" /></StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource RowButton}" Padding="6,7" Command="{Binding DeletePhotosCommand}" Foreground="{DynamicResource DangerBrush}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{x:Static core:Glyphs.Delete}" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,10,0" /><TextBlock Text="Delete" /></StackPanel>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

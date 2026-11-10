@@ -1,0 +1,164 @@
+<UserControl x:Class="Satchel.Views.LockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core">
+    <UserControl.Resources>
+        <Style x:Key="ErrorText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,10,0,0" />
+            <Setter Property="Text" Value="{Binding Error}" />
+            <Setter Property="Visibility" Value="{Binding Error, Converter={StaticResource HasValueToVis}}" />
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Margin" Value="0,14,0,6" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="BigAccent" TargetType="Button" BasedOn="{StaticResource AccentButton}">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Margin" Value="0,18,0,0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="FontSize" Value="14.5" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <c:AmbientBackground />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid MinHeight="600">
+                <StackPanel Width="430" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,40">
+                    <c:LogoMark Size="64" HorizontalAlignment="Center" b:Motion.Enter="True" />
+                    <TextBlock Text="{Binding AppName}" FontFamily="{StaticResource DisplayFont}" FontSize="30" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,14,0,2" b:Motion.Enter="True" b:Motion.Delay="60" />
+                    <TextBlock Text="{Binding Tagline}" Style="{StaticResource Muted}" HorizontalAlignment="Center" b:Motion.Enter="True" b:Motion.Delay="110" />
+
+                    <Grid x:Name="Card" Margin="0,28,0,0" b:Motion.Enter="True" b:Motion.Delay="160">
+                        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="{DynamicResource RadiusLarge}" Effect="{DynamicResource DialogShadow}" />
+                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                                CornerRadius="{DynamicResource RadiusLarge}" Padding="30,28">
+                            <Grid x:Name="Panels">
+                                <!-- Unlock -->
+                                <StackPanel Visibility="{Binding Mode, Converter={StaticResource EqualsToVis}, ConverterParameter=Unlock}">
+                                    <TextBlock Text="{Binding Greeting}" Style="{StaticResource Title}" FontSize="20" />
+                                    <TextBlock Text="Enter your master password to unlock." Style="{StaticResource Muted}" Margin="0,4,0,20" />
+                                    <c:PasswordInput Password="{Binding Password}" Placeholder="Master password" MinHeight="44" b:Ui.FocusOnLoad="True"
+                                                     b:Ui.EnterCommand="{Binding UnlockCommand}" />
+                                    <TextBlock Style="{StaticResource ErrorText}" />
+                                    <Button Command="{Binding UnlockCommand}" b:Ui.Icon="{x:Static core:Glyphs.Unlock}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource BigAccent}">
+                                                <Setter Property="Content" Value="Unlock" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                                        <Setter Property="Content" Value="Unlocking…" />
+                                                        <Setter Property="IsEnabled" Value="False" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Grid Margin="0,16,0,0">
+                                        <Button Style="{StaticResource LinkButton}" Content="Show hint" Command="{Binding ToggleHintCommand}" HorizontalAlignment="Left"
+                                                Visibility="{Binding HasHint, Converter={StaticResource BoolToVis}}" />
+                                        <Button Style="{StaticResource LinkButton}" Content="Forgot password?" Command="{Binding StartRecoveryCommand}" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Border Visibility="{Binding ShowHint, Converter={StaticResource BoolToVis}}" Background="{DynamicResource AccentSubtleBrush}"
+                                            CornerRadius="{DynamicResource RadiusSmall}" Padding="12,9" Margin="0,12,0,0">
+                                        <TextBlock Text="{Binding PasswordHint}" TextWrapping="Wrap" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- First run -->
+                                <StackPanel Visibility="{Binding Mode, Converter={StaticResource EqualsToVis}, ConverterParameter=Setup}">
+                                    <TextBlock Text="Create your vault" Style="{StaticResource Title}" FontSize="20" />
+                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,4,0,6"
+                                               Text="Choose a master password. It encrypts everything you keep in Satchel and can't be recovered without your recovery key." />
+                                    <TextBlock Text="Master password" Style="{StaticResource FieldLabel}" />
+                                    <c:PasswordInput Password="{Binding Password}" Placeholder="At least 8 characters — a short phrase works great" MinHeight="42" b:Ui.FocusOnLoad="True" />
+                                    <c:StrengthMeter Password="{Binding Password}" Margin="0,10,0,0" />
+                                    <TextBlock Text="Confirm password" Style="{StaticResource FieldLabel}" />
+                                    <c:PasswordInput Password="{Binding Confirm}" Placeholder="Type it again" MinHeight="42" b:Ui.EnterCommand="{Binding CreateCommand}" />
+                                    <TextBlock Text="Hint (optional — stored unencrypted)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Text="{Binding Hint, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Something only you would understand" />
+                                    <TextBlock Style="{StaticResource ErrorText}" />
+                                    <Button Command="{Binding CreateCommand}" b:Ui.Icon="{x:Static core:Glyphs.Shield}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource BigAccent}">
+                                                <Setter Property="Content" Value="Create vault" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                                        <Setter Property="Content" Value="Securing your vault…" />
+                                                        <Setter Property="IsEnabled" Value="False" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Recovery key after setup -->
+                                <StackPanel Visibility="{Binding Mode, Converter={StaticResource EqualsToVis}, ConverterParameter=ShowRecovery}">
+                                    <TextBlock Text="Save your recovery key" Style="{StaticResource Title}" FontSize="20" />
+                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,4,0,0"
+                                               Text="If you ever forget your master password, this key is the only way back in. Keep it somewhere safe — ideally not on this drive." />
+                                    <Border Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5"
+                                            CornerRadius="{DynamicResource RadiusSmall}" Padding="12,16" Margin="0,18,0,0">
+                                        <TextBox Text="{Binding RecoveryKey, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource InlineTextBox}"
+                                                 FontFamily="{StaticResource MonoFont}" FontSize="18" TextAlignment="Center" FontWeight="SemiBold" />
+                                    </Border>
+                                    <UniformGrid Columns="2" Margin="0,10,0,0">
+                                        <Button Content="Copy" b:Ui.Icon="{x:Static core:Glyphs.Copy}" Command="{Binding CopyRecoveryKeyCommand}" Margin="0,0,5,0" />
+                                        <Button Content="Save to file…" b:Ui.Icon="{x:Static core:Glyphs.Save}" Command="{Binding SaveRecoveryKeyCommand}" Margin="5,0,0,0" />
+                                    </UniformGrid>
+                                    <CheckBox Content="I've stored my recovery key somewhere safe" IsChecked="{Binding RecoverySaved}" Margin="0,20,0,0" />
+                                    <TextBlock Style="{StaticResource ErrorText}" />
+                                    <Button Style="{StaticResource BigAccent}" Content="Open my vault" Command="{Binding FinishSetupCommand}"
+                                            IsEnabled="{Binding RecoverySaved}" b:Ui.Icon="{x:Static core:Glyphs.Forward}" />
+                                </StackPanel>
+
+                                <!-- Recover with key -->
+                                <StackPanel Visibility="{Binding Mode, Converter={StaticResource EqualsToVis}, ConverterParameter=Recover}">
+                                    <TextBlock Text="Use your recovery key" Style="{StaticResource Title}" FontSize="20" />
+                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,4,0,18"
+                                               Text="Enter the 25-character key you saved when you created the vault. You'll then choose a new master password." />
+                                    <TextBox Text="{Binding RecoveryInput, UpdateSourceTrigger=PropertyChanged}" FontFamily="{StaticResource MonoFont}" FontSize="15"
+                                             MinHeight="44" b:Ui.Placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" b:Ui.FocusOnLoad="True"
+                                             b:Ui.EnterCommand="{Binding VerifyRecoveryCommand}" CharacterCasing="Upper" />
+                                    <TextBlock Style="{StaticResource ErrorText}" />
+                                    <Button Style="{StaticResource BigAccent}" Content="Continue" Command="{Binding VerifyRecoveryCommand}" />
+                                    <Button Style="{StaticResource LinkButton}" Content="← Back to unlock" Command="{Binding BackToUnlockCommand}" Margin="0,16,0,0" HorizontalAlignment="Center" />
+                                </StackPanel>
+
+                                <!-- New password after recovery -->
+                                <StackPanel Visibility="{Binding Mode, Converter={StaticResource EqualsToVis}, ConverterParameter=ResetPassword}">
+                                    <TextBlock Text="Choose a new master password" Style="{StaticResource Title}" FontSize="20" />
+                                    <TextBlock Text="Your recovery key checked out. Pick a new password to finish." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,6" />
+                                    <TextBlock Text="New master password" Style="{StaticResource FieldLabel}" />
+                                    <c:PasswordInput Password="{Binding Password}" Placeholder="At least 8 characters" MinHeight="42" b:Ui.FocusOnLoad="True" />
+                                    <c:StrengthMeter Password="{Binding Password}" Margin="0,10,0,0" />
+                                    <TextBlock Text="Confirm password" Style="{StaticResource FieldLabel}" />
+                                    <c:PasswordInput Password="{Binding Confirm}" Placeholder="Type it again" MinHeight="42" b:Ui.EnterCommand="{Binding ResetPasswordCommand}" />
+                                    <TextBlock Text="Hint (optional)" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Text="{Binding Hint, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Style="{StaticResource ErrorText}" />
+                                    <Button Style="{StaticResource BigAccent}" Content="Save and unlock" Command="{Binding ResetPasswordCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0" b:Motion.Enter="True" b:Motion.Delay="240">
+                        <TextBlock Text="{x:Static core:Glyphs.Usb}" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource TextFaintBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Style="{StaticResource Caption}" Foreground="{DynamicResource TextFaintBrush}" ToolTip="{Binding DataLocation}">
+                            <Run Text="{Binding DriveText, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding Version, Mode=OneWay}" /><Run Text="  ·  AES-256 encrypted" />
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

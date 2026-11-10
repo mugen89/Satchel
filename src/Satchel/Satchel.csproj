@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Satchel</AssemblyName>
+    <RootNamespace>Satchel</RootNamespace>
+    <ApplicationIcon>Assets\satchel.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>Satchel</Product>
+    <Description>Portable personal organizer: notes, tasks, calendar and an encrypted vault.</Description>
+    <!-- Raise this for every release (and use the same number for the GitHub release tag, e.g. v1.3.1). -->
+    <Version>1.3.0</Version>
+    <!-- The GitHub repository the app checks for updates, as "owner/name" (e.g. "yourname/Satchel").
+         Settings → Updates can override it. See "GitHub and update instructions.md". -->
+    <SatchelUpdateRepository>mugen89/Satchel</SatchelUpdateRepository>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Keeps WPF from looking for Themes/Generic.xaml; all styles live in App.xaml dictionaries. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+    <PackageReference Include="Markdig" Version="1.6.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdateRepository" Value="$(SatchelUpdateRepository)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\satchel.ico" />
+    <EmbeddedResource Include="Resources\wordlist.txt" />
+  </ItemGroup>
+
+</Project>

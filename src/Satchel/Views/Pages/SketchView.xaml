@@ -1,0 +1,173 @@
+<UserControl x:Class="Satchel.Views.Pages.SketchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:m="clr-namespace:Satchel.Models"
+             xmlns:vm="clr-namespace:Satchel.ViewModels"
+             PreviewKeyDown="OnKeyDown">
+    <UserControl.Resources>
+        <Style x:Key="ToolButton" TargetType="RadioButton" BasedOn="{StaticResource Segment}">
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <!-- ===== Gallery ===== -->
+        <DockPanel Margin="28,0,28,0" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+            <DockPanel DockPanel.Dock="Top" Margin="0,4,0,16">
+                <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Content="New sketch" b:Ui.Icon="{x:Static core:Glyphs.Pen}" Command="{Binding NewSketchCommand}"
+                        ToolTip="New sketch (Ctrl+N)" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Sketch" Style="{StaticResource PageTitle}" />
+                    <TextBlock Text="Doodles, diagrams, game levels, ideas — pen and tablet friendly" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </DockPanel>
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-12,0" Padding="0,0,12,24">
+                    <ItemsControl ItemsSource="{Binding Sketches}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type m:Sketch}">
+                                <Button Style="{StaticResource CardButton}" Width="280" Margin="0,0,16,16" Padding="0" b:Motion.Enter="True"
+                                        Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                    <StackPanel>
+                                        <Border Height="175" CornerRadius="10,10,0,0" ClipToBounds="True" Background="White">
+                                            <Image Source="{Binding Thumbnail, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" />
+                                        </Border>
+                                        <StackPanel Margin="14,10,14,12">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding UpdatedAt, Converter={StaticResource DateFormat}, ConverterParameter=relative}" Style="{StaticResource Caption}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" b:Motion.Enter="True">
+                    <Border Style="{StaticResource EmptyIcon}">
+                        <TextBlock Text="{x:Static core:Glyphs.Pen}" Style="{StaticResource Icon}" FontSize="28" Foreground="{DynamicResource AccentTextBrush}" />
+                    </Border>
+                    <TextBlock Text="A blank sketchbook" Style="{StaticResource Subtitle}" HorizontalAlignment="Center" Margin="0,16,0,4" />
+                    <TextBlock Text="Sketch with the mouse, a pen or a tablet. Trace over a reference picture, then send it to a board." Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                    <Button Style="{StaticResource AccentButton}" Content="Start sketching" b:Ui.Icon="{x:Static core:Glyphs.Pen}" Command="{Binding NewSketchCommand}" HorizontalAlignment="Center" Margin="0,18,0,0" />
+                </StackPanel>
+            </Grid>
+        </DockPanel>
+
+        <!-- ===== Editor ===== -->
+        <DockPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+            <!-- top bar -->
+            <DockPanel DockPanel.Dock="Top" Margin="24,2,24,10">
+                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Back}" Command="{Binding BackCommand}" ToolTip="Back to sketches" Margin="0,0,8,0" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Undo}" Click="OnUndo" ToolTip="Undo (Ctrl+Z)" />
+                    <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.Redo}" Click="OnRedo" ToolTip="Redo (Ctrl+Y)" />
+                    <Border Style="{StaticResource VDivider}" Margin="6,8" />
+                    <Button Content="To board" b:Ui.Icon="{x:Static core:Glyphs.Tiles}" Click="OnSendToBoard" ToolTip="Put this sketch on a board as a photo note" Margin="0,0,6,0" />
+                    <Button Style="{StaticResource IconButton}" Content="{x:Static core:Glyphs.More}" b:Ui.MenuOnClick="True" ToolTip="More">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Export PNG…" Icon="{x:Static core:Glyphs.Export}" Click="OnExport" />
+                                <MenuItem Header="Copy image" Icon="{x:Static core:Glyphs.Copy}" Click="OnCopy" />
+                                <Separator />
+                                <MenuItem Header="Reference image…" Icon="{x:Static core:Glyphs.Picture}" Command="{Binding PickReferenceCommand}" />
+                                <MenuItem Header="Remove reference" Icon="{x:Static core:Glyphs.Close}" Command="{Binding RemoveReferenceCommand}" />
+                                <Separator />
+                                <MenuItem Header="Clear canvas" Icon="{x:Static core:Glyphs.Refresh}" Click="OnClear" />
+                                <MenuItem Header="Rename…" Icon="{x:Static core:Glyphs.Edit}" Command="{Binding RenameCommand}" />
+                                <MenuItem Header="{Binding Selected.IsPrivate, Converter={StaticResource BoolToString}, ConverterParameter='Remove private flag|Mark private'}" Icon="{x:Static core:Glyphs.Hide}"
+                                          Command="{x:Static s:PrivacyCommands.Toggle}" CommandParameter="{Binding Selected}" />
+                                <MenuItem Header="Delete sketch" Icon="{x:Static core:Glyphs.Delete}" Style="{StaticResource DangerMenuItem}" Command="{Binding DeleteCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding Selected.Title}" Style="{StaticResource Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+
+            <!-- tools -->
+            <Border DockPanel.Dock="Top" Margin="24,0,24,10" Padding="8,6" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                    CornerRadius="{DynamicResource Radius}">
+                <WrapPanel>
+                    <Border Style="{StaticResource SegmentHost}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource ToolButton}" b:Ui.Icon="{x:Static core:Glyphs.Pen}" Content="Pen" IsChecked="{Binding Tool, Converter={StaticResource Equals}, ConverterParameter=pen}" ToolTip="Pen (P)" />
+                            <RadioButton Style="{StaticResource ToolButton}" b:Ui.Icon="{x:Static core:Glyphs.Highlight}" Content="Marker" IsChecked="{Binding Tool, Converter={StaticResource Equals}, ConverterParameter=marker}" ToolTip="Marker (M)" />
+                            <RadioButton Style="{StaticResource ToolButton}" b:Ui.Icon="{x:Static core:Glyphs.Eraser}" Content="Eraser" IsChecked="{Binding Tool, Converter={StaticResource Equals}, ConverterParameter=eraser}" ToolTip="Eraser (E)" />
+                            <RadioButton Style="{StaticResource ToolButton}" b:Ui.Icon="{x:Static core:Glyphs.Delete}" Content="Stroke" IsChecked="{Binding Tool, Converter={StaticResource Equals}, ConverterParameter=strokes}" ToolTip="Erase whole strokes" />
+                            <RadioButton Style="{StaticResource ToolButton}" b:Ui.Icon="{x:Static core:Glyphs.SelectAll}" Content="Select" IsChecked="{Binding Tool, Converter={StaticResource Equals}, ConverterParameter=select}" ToolTip="Lasso select — move, resize or delete (S)" />
+                        </StackPanel>
+                    </Border>
+                    <ItemsControl ItemsSource="{x:Static vm:SketchViewModel.Palette}" Focusable="False" VerticalAlignment="Center" Margin="0,0,10,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Width="26" Height="26" Margin="1,0" Cursor="Hand" Background="Transparent" MouseLeftButtonUp="OnColorPicked">
+                                    <Ellipse x:Name="ring" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" Opacity="0" />
+                                    <Ellipse Margin="4" Fill="{Binding Converter={StaticResource HexToBrush}}" Stroke="{DynamicResource StrokeStrongBrush}" StrokeThickness="1" />
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Value="True">
+                                        <DataTrigger.Binding>
+                                            <MultiBinding Converter="{StaticResource AllEqual}">
+                                                <Binding />
+                                                <Binding Path="DataContext.Color" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            </MultiBinding>
+                                        </DataTrigger.Binding>
+                                        <Setter TargetName="ring" Property="Opacity" Value="1" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                        <Ellipse Width="{Binding Size}" Height="{Binding Size}" MaxWidth="24" MaxHeight="24" Fill="{Binding Color, Converter={StaticResource HexToBrush}}"
+                                 Stroke="{DynamicResource StrokeStrongBrush}" StrokeThickness="0.5" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <Slider Minimum="1" Maximum="30" SmallChange="1" Value="{Binding Size}" Width="110" VerticalAlignment="Center" ToolTip="Size" />
+                    </StackPanel>
+                    <ComboBox Style="{StaticResource SmallCombo}" ItemsSource="{x:Static vm:SketchViewModel.Papers}" SelectedValuePath="Value" DisplayMemberPath="Label"
+                              SelectedValue="{Binding Selected.Paper, Mode=OneWay}" SelectionChanged="OnPaperChanged" Width="110" Margin="0,0,10,0" ToolTip="Paper" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding Selected.Reference, Converter={StaticResource HasValueToVis}}" Margin="0,0,10,0">
+                        <TextBlock Text="{x:Static core:Glyphs.Picture}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource TextMutedBrush}" />
+                        <Slider Minimum="0.05" Maximum="1" Value="{Binding Selected.ReferenceOpacity}" Width="90" VerticalAlignment="Center" ToolTip="Reference opacity"
+                                Thumb.DragCompleted="OnOpacityDone" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SegmentHost}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.ZoomOut}" Click="OnZoomOut" ToolTip="Zoom out (Ctrl+wheel)" />
+                            <Button Style="{StaticResource GhostButton}" Content="{Binding Zoom, Converter={StaticResource Percent}}" Click="OnZoomFit" MinHeight="28" Padding="6,0" MinWidth="50" FontWeight="Normal" ToolTip="Fit" />
+                            <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.ZoomIn}" Click="OnZoomIn" ToolTip="Zoom in (Ctrl+wheel)" />
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
+            </Border>
+
+            <!-- canvas -->
+            <Border Margin="24,0,24,20" CornerRadius="{DynamicResource Radius}" Background="{DynamicResource SegmentBrush}" ClipToBounds="True">
+                <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="OnWheel">
+                    <Grid x:Name="Page" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid.LayoutTransform>
+                            <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}" />
+                        </Grid.LayoutTransform>
+                        <Border x:Name="Paper" Effect="{DynamicResource CardShadow}" />
+                        <Image x:Name="Reference" Stretch="Uniform" Opacity="{Binding Selected.ReferenceOpacity}" IsHitTestVisible="False"
+                               Source="{Binding Selected.Reference, Converter={StaticResource BytesToImage}}" />
+                        <InkCanvas x:Name="Ink" Background="Transparent" />
+                    </Grid>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+    </Grid>
+</UserControl>

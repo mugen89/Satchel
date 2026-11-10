@@ -1,0 +1,23 @@
+bin/
+obj/
+release/
+.vs/
+*.user
+*.suo
+
+# Personal data — never commit your vault
+Data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Your recovery key unlocks the vault: it must never be uploaded (keep it on paper or in a password manager).
+Satchel recovery key.txt
+*recovery key*
+*recovery-key*
+*Recovery Key*
+
+# Files an update leaves behind for a moment
+*.old
+*.old-*

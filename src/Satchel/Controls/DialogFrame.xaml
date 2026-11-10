@@ -1,0 +1,21 @@
+<UserControl x:Class="Satchel.Controls.DialogFrame"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Rectangle x:Name="Backdrop" Fill="{DynamicResource OverlayBrush}" Opacity="0" MouseLeftButtonDown="OnBackdropClick" />
+        <Grid x:Name="Card" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32" Width="{Binding DialogWidth}"
+              RenderTransformOrigin="0.5,0.5" Opacity="0" KeyboardNavigation.TabNavigation="Cycle" Focusable="True" FocusVisualStyle="{x:Null}">
+            <Grid.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="CardScale" ScaleX="0.94" ScaleY="0.94" />
+                    <TranslateTransform x:Name="CardShift" Y="10" />
+                </TransformGroup>
+            </Grid.RenderTransform>
+            <Border Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource RadiusLarge}" Effect="{DynamicResource DialogShadow}" />
+            <Border Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                    CornerRadius="{DynamicResource RadiusLarge}" Padding="24,22">
+                <ContentPresenter Content="{Binding}" />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

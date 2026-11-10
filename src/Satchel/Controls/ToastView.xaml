@@ -1,0 +1,34 @@
+<UserControl x:Class="Satchel.Controls.ToastView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="clr-namespace:Satchel.Core">
+    <Grid x:Name="Card" Margin="0,10,0,0" MinWidth="300" MaxWidth="440" HorizontalAlignment="Right" Opacity="0">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="Shift" X="60" />
+        </Grid.RenderTransform>
+        <Border Background="{DynamicResource ElevatedBrush}" CornerRadius="{DynamicResource Radius}" Effect="{DynamicResource PopupShadow}" />
+        <Border Background="{DynamicResource ElevatedBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                CornerRadius="{DynamicResource Radius}" Padding="12,10,8,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="IconBg" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Center" Background="{DynamicResource InfoSubtleBrush}">
+                    <TextBlock x:Name="Icon" Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="14" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="{DynamicResource InfoBrush}" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Visibility="{Binding HasTitle, Converter={StaticResource BoolToVis}}" Margin="0,0,0,2" />
+                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="{Binding ActionText}" Command="{Binding ActCommand}"
+                        Margin="0,0,10,0" VerticalAlignment="Center" Visibility="{Binding HasAction, Converter={StaticResource BoolToVis}}" />
+                <Button Grid.Column="3" Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.Close}" FontSize="9"
+                        Command="{Binding DismissCommand}" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

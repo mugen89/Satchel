@@ -1,0 +1,291 @@
+<UserControl x:Class="Satchel.Views.Pages.TodayView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:Satchel.Controls"
+             xmlns:b="clr-namespace:Satchel.Behaviors"
+             xmlns:core="clr-namespace:Satchel.Core"
+             xmlns:s="clr-namespace:Satchel.Services"
+             xmlns:vm="clr-namespace:Satchel.ViewModels"
+             xmlns:m="clr-namespace:Satchel.Models">
+    <UserControl.Resources>
+        <Style x:Key="CardHeader" TargetType="DockPanel">
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="CardIcon" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,0,28,28">
+            <!-- ===== Header ===== -->
+            <DockPanel Margin="0,0,0,16">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border CornerRadius="18" Padding="10,4,14,4" Margin="0,0,14,0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1"
+                            Visibility="{Binding HasWeather, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <c:WeatherIcon Kind="{Binding WeatherNow.Kind}" Width="30" Height="30" VerticalAlignment="Center" />
+                            <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock FontWeight="SemiBold"><Run Text="{Binding WeatherNow.Temperature, Mode=OneWay, StringFormat={}{0:0}°}" /><Run Text=" " /><Run Text="{Binding WeatherNow.Description, Mode=OneWay}" FontWeight="Normal" /></TextBlock>
+                                <TextBlock Text="{Binding WeatherNow.Location.Name}" Style="{StaticResource Caption}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource SegmentHost}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.ChevronLeft}" Command="{Binding PreviousDayCommand}" ToolTip="Previous day" />
+                            <Button Style="{StaticResource GhostButton}" Content="Today" Command="{Binding GoTodayCommand}" MinHeight="28" Padding="10,0" FontWeight="Normal" />
+                            <Button Style="{StaticResource IconButtonSmall}" Content="{x:Static core:Glyphs.ChevronRight}" Command="{Binding NextDayCommand}" ToolTip="Next day" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding RelativeText}" Style="{StaticResource Overline}" FontSize="12" />
+                    <TextBlock Style="{StaticResource PageTitle}"><Run Text="{Binding DateTitle, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding YearText, Mode=OneWay}" Foreground="{DynamicResource TextFaintBrush}" FontWeight="Normal" /></TextBlock>
+                    <TextBlock Text="{Binding StatsText}" Style="{StaticResource Muted}" />
+                </StackPanel>
+            </DockPanel>
+
+            <ItemsControl ItemsSource="{Binding Celebrations}" Focusable="False" Margin="0,0,0,14" Visibility="{Binding HasCelebrations, Converter={StaticResource BoolToVis}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Pill}" Margin="0,0,8,6" Padding="12,5" b:Motion.Enter="True">
+                            <TextBlock Text="{Binding}" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}" />
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- ===== Left: agenda and tasks ===== -->
+                <StackPanel>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <DockPanel Style="{StaticResource CardHeader}">
+                                <TextBlock Text="{x:Static core:Glyphs.Calendar}" Style="{StaticResource CardIcon}" />
+                                <TextBlock Text="Agenda" Style="{StaticResource Subtitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Agenda}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource RowButton}" Padding="8,7" Margin="-8,0"
+                                                Command="{Binding DataContext.OpenAgendaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <DockPanel>
+                                                <Border DockPanel.Dock="Left" Width="4" CornerRadius="2" Background="{Binding ColorKey, Converter={StaticResource PaletteBrush}}" Margin="0,0,12,0" />
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Day}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0,0,0" MaxWidth="140" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Time}" Style="{StaticResource Caption}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Nothing on the calendar." Style="{StaticResource Muted}" Visibility="{Binding HasAgenda, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <StackPanel>
+                            <DockPanel Style="{StaticResource CardHeader}">
+                                <TextBlock Text="{x:Static core:Glyphs.Tasks}" Style="{StaticResource CardIcon}" />
+                                <TextBlock Text="Tasks" Style="{StaticResource Subtitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Border Padding="10,0" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource StrokeBrush}"
+                                    BorderThickness="1" MinHeight="36" Margin="0,0,0,8">
+                                <DockPanel>
+                                    <TextBlock Text="{x:Static core:Glyphs.Add}" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,10,0" />
+                                    <TextBox Style="{StaticResource InlineTextBox}" Text="{Binding NewTask, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="Add a task for this day — “water plants every monday”"
+                                             b:Ui.EnterCommand="{Binding AddTaskCommand}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding Tasks}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <c:AnimatedStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type m:TaskItem}">
+                                        <Button Style="{StaticResource RowButton}" Padding="6,6" Margin="-6,0"
+                                                Command="{Binding DataContext.OpenTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <DockPanel>
+                                                <CheckBox DockPanel.Dock="Left" Style="{StaticResource RoundCheck}" IsChecked="{Binding IsDone, Mode=OneWay}" VerticalAlignment="Center"
+                                                          BorderBrush="{Binding Priority, Converter={StaticResource PriorityBrush}}"
+                                                          Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <TextBlock x:Name="due" DockPanel.Dock="Right" Text="{Binding DueText}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                <TextBlock DockPanel.Dock="Right" Text="{x:Static core:Glyphs.Repeat}" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFaintBrush}" Margin="8,0,0,0" ToolTip="{Binding RepeatText}"
+                                                           Visibility="{Binding IsRepeating, Converter={StaticResource BoolToVis}}" />
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="12,0,0,0" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </Button>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                                <Setter TargetName="due" Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No tasks due. 🎉" Style="{StaticResource Muted}" Visibility="{Binding HasTasks, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                            <StackPanel Visibility="{Binding HasDone, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Done" Style="{StaticResource Overline}" Margin="0,14,0,4" />
+                                <ItemsControl ItemsSource="{Binding Done}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type m:TaskItem}">
+                                            <DockPanel Margin="0,3">
+                                                <CheckBox DockPanel.Dock="Left" Style="{StaticResource RoundCheck}" IsChecked="{Binding IsDone, Mode=OneWay}" VerticalAlignment="Center"
+                                                          Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                           TextDecorations="Strikethrough" Foreground="{DynamicResource TextFaintBrush}" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,18,0,0" Visibility="{Binding HasMemories, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <DockPanel Style="{StaticResource CardHeader}">
+                                <TextBlock Text="{x:Static core:Glyphs.History}" Style="{StaticResource CardIcon}" />
+                                <TextBlock Text="On this day" Style="{StaticResource Subtitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Memories}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:MemoryItem}">
+                                        <Button Style="{StaticResource RowButton}" Padding="8,6" Margin="-8,0" HorizontalContentAlignment="Stretch"
+                                                Command="{Binding DataContext.OpenMemoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <DockPanel>
+                                                <Grid DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,12,0">
+                                                    <Border CornerRadius="8" Background="{DynamicResource AccentSubtleBrush}">
+                                                        <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="15" Foreground="{DynamicResource AccentTextBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <Border CornerRadius="8" ClipToBounds="True" Visibility="{Binding Image, Converter={StaticResource HasValueToVis}}">
+                                                        <Image Source="{Binding Image, Converter={StaticResource BytesToImage}}" Stretch="UniformToFill" />
+                                                    </Border>
+                                                </Grid>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ===== Right: journal and auto-diary ===== -->
+                <StackPanel Grid.Column="2">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <DockPanel Style="{StaticResource CardHeader}">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Open" b:Ui.Icon="{x:Static core:Glyphs.Edit}" Command="{Binding WriteJournalCommand}"
+                                        ToolTip="Write the full entry in Notes" />
+                                <TextBlock Text="{x:Static core:Glyphs.Journal}" Style="{StaticResource CardIcon}" />
+                                <TextBlock Text="Journal" Style="{StaticResource Subtitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <TextBlock Text="Mood" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <ItemsControl ItemsSource="{x:Static vm:TodayViewModel.Moods}" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ToggleButton Style="{StaticResource ToolToggle}" Width="38" Height="34" Content="{Binding Label}" FontFamily="{StaticResource EmojiFont}" FontSize="17"
+                                                          ToolTip="{Binding Glyph}" Margin="0,0,4,0"
+                                                          Command="{Binding DataContext.SetMoodCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Value}">
+                                                <ToggleButton.IsChecked>
+                                                    <MultiBinding Converter="{StaticResource AllEqual}" Mode="OneWay">
+                                                        <Binding Path="Value" />
+                                                        <Binding Path="DataContext.Mood" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                    </MultiBinding>
+                                                </ToggleButton.IsChecked>
+                                            </ToggleButton>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                            <TextBlock Text="{Binding JournalPreview}" Style="{StaticResource Body}" MaxHeight="220" TextTrimming="WordEllipsis" Margin="0,0,0,10"
+                                       Visibility="{Binding HasJournal, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="No entry yet. Add a line below, or open the journal to write more." Style="{StaticResource Muted}" Margin="0,0,0,10" TextWrapping="Wrap" TextTrimming="None"
+                                       Visibility="{Binding HasJournal, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                            <Border Padding="10,0" CornerRadius="{DynamicResource RadiusSmall}" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource StrokeBrush}"
+                                    BorderThickness="1" MinHeight="36">
+                                <DockPanel>
+                                    <TextBlock Text="{x:Static core:Glyphs.Edit}" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,10,0" />
+                                    <TextBox Style="{StaticResource InlineTextBox}" Text="{Binding JournalLine, UpdateSourceTrigger=PropertyChanged}" b:Ui.Placeholder="A thought, a moment, a win… (Enter)"
+                                             b:Ui.EnterCommand="{Binding AddJournalLineCommand}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <StackPanel>
+                            <DockPanel Style="{StaticResource CardHeader}">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Save to journal" b:Ui.Icon="{x:Static core:Glyphs.Save}" Command="{Binding SaveDiaryCommand}"
+                                        ToolTip="Add this list to the day's journal entry" Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{x:Static core:Glyphs.Pulse}" Style="{StaticResource CardIcon}" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Auto-diary" Style="{StaticResource Subtitle}" />
+                                    <TextBlock Text="Written for you from what you did in Satchel" Style="{StaticResource Caption}" />
+                                </StackPanel>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Entries}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type s:DiaryEntry}">
+                                        <Button Style="{StaticResource RowButton}" Padding="6,4" Margin="-6,0" HorizontalContentAlignment="Stretch" b:Motion.Enter="True"
+                                                Command="{Binding DataContext.OpenEntryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="48" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding TimeText}" Style="{StaticResource Caption}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" VerticalAlignment="Center" />
+                                                <Border Grid.Column="1" Width="28" Height="28" CornerRadius="14" Margin="0,0,12,0"
+                                                        Background="{Binding ColorKey, Converter={StaticResource PaletteBrush}, ConverterParameter=subtle}">
+                                                    <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               Foreground="{Binding ColorKey, Converter={StaticResource PaletteBrush}}" />
+                                                </Border>
+                                                <TextBlock Grid.Column="2" Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Nothing yet. Tasks you finish, notes you write, sessions you log, videos and episodes you watch — they all show up here."
+                                       Style="{StaticResource Muted}" TextWrapping="Wrap" TextTrimming="None" Visibility="{Binding HasEntries, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
